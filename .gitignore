@@ -6,17 +6,15 @@ node_modules/
 .env.*
 !.env.example
 
-# Build files
+# Build output
 dist/
 build/
 
 # Logs
 *.log
 
-# VS Code
+# Editor files
 .vscode/
-
-# Other IDE files
 .idea/
 
 # OS files
