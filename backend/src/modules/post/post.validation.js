@@ -34,3 +34,21 @@ export const createPostSchema = z.object({
     })
     .optional(),
 });
+export const updatePostSchema = z.object({
+  title: z
+    .string()
+    .trim()
+    .min(5, "Title must be at least 5 characters")
+    .max(150, "Title must be at most 150 characters"),
+
+  content: z
+    .string()
+    .trim()
+    .min(50, "Content must be at least 50 characters"),
+
+  excerpt: z
+    .string()
+    .trim()
+    .max(300, "Excerpt must be at most 300 characters")
+    .optional(),
+});

@@ -2,9 +2,13 @@ import {
   createPost,
   getPublishedPosts,
   getPublishedPostBySlug,
+  updatePost,
 } from "./post.service.js";
 
-import { createPostSchema } from "./post.validation.js";
+import {
+  createPostSchema,
+  updatePostSchema,
+} from "./post.validation.js";
 
 export const create = async (req, res) => {
   try {
@@ -72,6 +76,28 @@ export const getBySlug = async (req, res) => {
     });
   } catch (error) {
     res.status(404).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+export const update = async (req, res) => {
+  try {
+    const validatedData = updatePostSchema.parse(req.body);
+
+    const post = await updatePost({
+      ...validatedData,
+      postId: req.params.id,
+      authorId: req.user._id,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Post updated successfully",
+      data: post,
+    });
+  } catch (error) {
+    res.status(400).json({
       success: false,
       message: error.message,
     });

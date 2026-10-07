@@ -76,3 +76,44 @@ export const getPublishedPostBySlug = async (slug) => {
 
   return post;
 };
+
+export const updatePost = async ({
+  postId,
+  authorId,
+  title,
+  content,
+  excerpt,
+}) => {
+  const post = await Post.findOne({
+  _id: postId,
+  author: authorId,
+  status: "DRAFT",
+});
+
+  if (!post) {
+    throw new Error("Post not found or you are not the owner");
+  }
+
+  const newSlug = generateSlug(title);
+
+  if (newSlug !== post.slug) {
+    const existingPost = await Post.findOne({
+      slug: newSlug,
+      _id: { $ne: postId },
+    });
+
+    if (existingPost) {
+      throw new Error("A post with this URL already exists");
+    }
+
+    post.slug = newSlug;
+  }
+
+  post.title = title;
+  post.content = content;
+  post.excerpt = excerpt;
+
+  await post.save();
+
+  return post;
+};
