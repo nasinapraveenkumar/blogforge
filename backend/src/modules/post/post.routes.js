@@ -5,6 +5,7 @@ import {
   getAll,
   getBySlug,
   update,
+  submit,
 } from "./post.controller.js";
 
 const router = express.Router();
@@ -14,5 +15,6 @@ router.get("/:slug", getBySlug);
 
 router.post("/", authenticate, create);
 router.put("/:id", authenticate, update);
+router.post("/:id/submit", authenticate, submit);
 
 export default router;

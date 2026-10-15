@@ -3,6 +3,7 @@ import {
   getPublishedPosts,
   getPublishedPostBySlug,
   updatePost,
+  submitPost,
 } from "./post.service.js";
 
 import {
@@ -94,6 +95,25 @@ export const update = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Post updated successfully",
+      data: post,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+export const submit = async (req, res) => {
+  try {
+    const post = await submitPost({
+      postId: req.params.id,
+      authorId: req.user._id,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Post submitted for review",
       data: post,
     });
   } catch (error) {

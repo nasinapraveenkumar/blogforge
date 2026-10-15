@@ -44,6 +44,15 @@ const postSchema = new mongoose.Schema(
       default: POST_STATUS.DRAFT,
       index: true,
     },
+    moderation: {
+  moderator: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+  },
+  claimedAt: {
+    type: Date,
+  },
+},
 
     category: {
       type: mongoose.Schema.Types.ObjectId,

@@ -85,10 +85,10 @@ export const updatePost = async ({
   excerpt,
 }) => {
   const post = await Post.findOne({
-  _id: postId,
-  author: authorId,
-  status: "DRAFT",
-});
+    _id: postId,
+    author: authorId,
+    status: "DRAFT",
+  });
 
   if (!post) {
     throw new Error("Post not found or you are not the owner");
@@ -112,6 +112,27 @@ export const updatePost = async ({
   post.title = title;
   post.content = content;
   post.excerpt = excerpt;
+
+  await post.save();
+
+  return post;
+};
+
+export const submitPost = async ({
+  postId,
+  authorId,
+}) => {
+  const post = await Post.findOne({
+    _id: postId,
+    author: authorId,
+    status: "DRAFT",
+  });
+
+  if (!post) {
+    throw new Error("Post not found or you are not the owner");
+  }
+
+  post.status = "SUBMITTED";
 
   await post.save();
 
