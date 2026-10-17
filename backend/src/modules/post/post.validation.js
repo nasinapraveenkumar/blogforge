@@ -1,4 +1,28 @@
+
 import { z } from "zod";
+
+const tagsSchema = z.preprocess(
+  (value) => {
+    if (typeof value === "string") {
+      return value.split(",");
+    }
+
+    return value;
+  },
+  z
+    .array(
+      z
+        .string()
+        .trim()
+        .min(1, "Tags cannot be empty")
+        .max(30, "Each tag must be at most 30 characters")
+    )
+    .max(10, "You can add at most 10 tags")
+    .transform((tags) => [
+      ...new Set(tags.map((tag) => tag.toLowerCase())),
+    ])
+    .optional()
+);
 
 export const createPostSchema = z.object({
   title: z
@@ -23,9 +47,7 @@ export const createPostSchema = z.object({
     .trim()
     .optional(),
 
-  tags: z
-    .array(z.string().trim())
-    .optional(),
+  tags: tagsSchema,
 
   coverImage: z
     .object({
@@ -34,6 +56,7 @@ export const createPostSchema = z.object({
     })
     .optional(),
 });
+
 export const updatePostSchema = z.object({
   title: z
     .string()
@@ -51,4 +74,6 @@ export const updatePostSchema = z.object({
     .trim()
     .max(300, "Excerpt must be at most 300 characters")
     .optional(),
+
+  tags: tagsSchema,
 });

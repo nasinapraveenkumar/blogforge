@@ -1,3 +1,5 @@
+
+import mongoose from "mongoose";
 import {
   claimNextModerationPost,
   approveModerationPost,
@@ -5,27 +7,38 @@ import {
   getModerationHistory,
 } from "./moderation.service.js";
 
+const sendError = (res, status, message) => {
+  return res.status(status).json({
+    success: false,
+    message,
+  });
+};
+
 export const claimNext = async (req, res) => {
   try {
     const post = await claimNextModerationPost(req.user._id);
 
     if (!post) {
-      return res.status(404).json({
-        success: false,
+      return res.status(200).json({
+        success: true,
         message: "No posts are waiting for moderation",
+        data: null,
       });
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Post claimed successfully",
       data: post,
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to claim moderation post",
-    });
+    console.error("Claim moderation post error:", error);
+
+    return sendError(
+      res,
+      500,
+      "Failed to claim moderation post"
+    );
   }
 };
 
@@ -36,28 +49,43 @@ export const approve = async (req, res) => {
       moderatorId: req.user._id,
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Post approved and published successfully",
       data: post,
     });
   } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message,
-    });
+    console.error("Approve moderation post error:", error);
+
+    const status =
+      error.name === "CastError" ? 400 : 400;
+
+    return sendError(
+      res,
+      status,
+      error.message || "Failed to approve post"
+    );
   }
 };
 
 export const reject = async (req, res) => {
   try {
-    const { reason } = req.body;
+    const { reason } = req.body || {};
 
-    if (!reason || !reason.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: "Rejection reason is required",
-      });
+    if (typeof reason !== "string" || !reason.trim()) {
+      return sendError(
+        res,
+        400,
+        "Rejection reason is required"
+      );
+    }
+
+    if (reason.trim().length > 1000) {
+      return sendError(
+        res,
+        400,
+        "Rejection reason cannot exceed 1000 characters"
+      );
     }
 
     const post = await rejectModerationPost({
@@ -66,31 +94,43 @@ export const reject = async (req, res) => {
       reason: reason.trim(),
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      message: "Post rejected and returned to draft",
+      message: "Post rejected successfully",
       data: post,
     });
   } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message,
-    });
+    console.error("Reject moderation post error:", error);
+
+    return sendError(
+      res,
+      400,
+      error.message || "Failed to reject post"
+    );
   }
 };
 
 export const getHistory = async (req, res) => {
   try {
-    const history = await getModerationHistory(req.params.id);
+    const { id } = req.params;
 
-    res.status(200).json({
+    if (!mongoose.isValidObjectId(id)) {
+      return sendError(res, 400, "Invalid post ID");
+    }
+
+    const history = await getModerationHistory(id);
+
+    return res.status(200).json({
       success: true,
       data: history,
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch moderation history",
-    });
+    console.error("Get moderation history error:", error);
+
+    return sendError(
+      res,
+      500,
+      "Failed to fetch moderation history"
+    );
   }
 };

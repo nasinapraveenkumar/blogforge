@@ -1,3 +1,4 @@
+
 import express from "express";
 import { authenticate } from "../../middleware/auth.middleware.js";
 
@@ -18,12 +19,12 @@ router.get("/", getAll);
 // Authenticated user's posts must come before /:slug
 router.get("/mine", authenticate, getMine);
 
-// Public post details
-router.get("/:slug", getBySlug);
-
 // Authenticated post actions
 router.post("/", authenticate, create);
-router.put("/:id", authenticate, update);
-router.post("/:id/submit", authenticate, submit);
+router.patch("/:id/submit", authenticate, submit);
+router.patch("/:id", authenticate, update);
+
+// Public post details
+router.get("/:slug", getBySlug);
 
 export default router;

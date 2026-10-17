@@ -1,50 +1,77 @@
+
+import mongoose from "mongoose";
 import Like from "./like.model.js";
 import Post from "../post/post.model.js";
 
-export const likePost = async ({
-  postId,
-  userId,
-}) => {
+export const likePost = async ({ postId, userId }) => {
+  if (!mongoose.isValidObjectId(postId)) {
+    throw new Error("Invalid post ID");
+  }
+
   const post = await Post.findOne({
     _id: postId,
     status: "PUBLISHED",
-  });
+  }).select("_id");
 
   if (!post) {
     throw new Error("Post not found");
   }
 
-  const existingLike = await Like.findOne({
-    post: postId,
-    user: userId,
-  });
-
-  if (existingLike) {
-    throw new Error("You have already liked this post");
+  try {
+    await Like.create({
+      post: postId,
+      user: userId,
+    });
+  } catch (error) {
+    if (error.code === 11000) {
+      throw new Error("You have already liked this post");
+    }
+    throw error;
   }
 
-  const like = await Like.create({
-    post: postId,
-    user: userId,
-  });
-
-  return like;
+  return getPostLikeSummary({ postId, userId });
 };
 
-export const unlikePost = async ({
-  postId,
-  userId,
-}) => {
-  const like = await Like.findOne({
+export const unlikePost = async ({ postId, userId }) => {
+  if (!mongoose.isValidObjectId(postId)) {
+    throw new Error("Invalid post ID");
+  }
+
+  const post = await Post.findOne({
+    _id: postId,
+    status: "PUBLISHED",
+  }).select("_id");
+
+  if (!post) {
+    throw new Error("Post not found");
+  }
+
+  const result = await Like.deleteOne({
     post: postId,
     user: userId,
   });
 
-  if (!like) {
+  if (result.deletedCount === 0) {
     throw new Error("You have not liked this post");
   }
 
-  await like.deleteOne();
+  return getPostLikeSummary({ postId, userId });
+};
 
-  return like;
+export const getPostLikeSummary = async ({ postId, userId }) => {
+  if (!mongoose.isValidObjectId(postId)) {
+    throw new Error("Invalid post ID");
+  }
+
+  const [likeCount, liked] = await Promise.all([
+    Like.countDocuments({ post: postId }),
+    userId
+      ? Like.exists({ post: postId, user: userId })
+      : Promise.resolve(false),
+  ]);
+
+  return {
+    likeCount,
+    liked: Boolean(liked),
+  };
 };

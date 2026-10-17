@@ -1,5 +1,5 @@
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import "./MyPosts.css";
@@ -34,6 +34,10 @@ function formatDate(date) {
   });
 }
 
+function getStatusClass(status = "unknown") {
+  return status.toLowerCase().replaceAll("_", "-");
+}
+
 export default function MyPosts() {
   const navigate = useNavigate();
 
@@ -51,66 +55,52 @@ export default function MyPosts() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadPosts = useCallback(async () => {
+    setLoading(true);
+    setError("");
 
-    async function loadPosts() {
-      try {
-        setLoading(true);
-        setError("");
+    try {
+      const response = await api.get("/posts/mine");
+      const result = response.data?.data;
 
-        const response = await api.get("/posts/mine");
-        const result = response.data?.data;
-
-        if (!result || !Array.isArray(result.posts)) {
-          throw new Error("Unexpected response from the posts API.");
-        }
-
-        if (cancelled) return;
-
-        setPosts(result.posts);
-        setStats({
-          totalPosts: result.stats?.totalPosts ?? result.posts.length,
-          published: result.stats?.published ?? 0,
-          pending: result.stats?.pending ?? 0,
-          drafts: result.stats?.drafts ?? 0,
-          rejected: result.stats?.rejected ?? 0,
-        });
-      } catch (err) {
-        if (cancelled) return;
-
-        if (err.response?.status === 401) {
-          navigate("/login", { replace: true });
-          return;
-        }
-
-        setError(
-          err.response?.data?.message ||
-            err.message ||
-            "Unable to load your posts."
-        );
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+      if (!result || !Array.isArray(result.posts)) {
+        throw new Error("Unexpected response from the posts API.");
       }
+
+      setPosts(result.posts);
+      setStats({
+        totalPosts: result.stats?.totalPosts ?? result.posts.length,
+        published: result.stats?.published ?? 0,
+        pending: result.stats?.pending ?? 0,
+        drafts: result.stats?.drafts ?? 0,
+        rejected: result.stats?.rejected ?? 0,
+      });
+    } catch (err) {
+      if (err.response?.status === 401) {
+        navigate("/login", { replace: true });
+        return;
+      }
+
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          "Unable to load your posts."
+      );
+    } finally {
+      setLoading(false);
     }
-
-    loadPosts();
-
-    return () => {
-      cancelled = true;
-    };
   }, [navigate]);
+
+  useEffect(() => {
+    loadPosts();
+  }, [loadPosts]);
 
   const visiblePosts = useMemo(() => {
     const query = search.trim().toLowerCase();
 
     return posts.filter((post) => {
-      const matchesSearch = (post.title || "")
-        .toLowerCase()
-        .includes(query);
-
+      const title = (post.title || "").toLowerCase();
+      const matchesSearch = title.includes(query);
       const status = (post.status || "").toUpperCase();
 
       const matchesFilter =
@@ -119,8 +109,7 @@ export default function MyPosts() {
         (activeFilter === "Submitted" && status === "SUBMITTED") ||
         (activeFilter === "Under Review" &&
           status === "UNDER_REVIEW") ||
-        (activeFilter === "Published" &&
-          ["PUBLISHED", "APPROVED"].includes(status)) ||
+        (activeFilter === "Published" && status === "PUBLISHED") ||
         (activeFilter === "Rejected" && status === "REJECTED");
 
       return matchesSearch && matchesFilter;
@@ -184,7 +173,10 @@ export default function MyPosts() {
           </span>
         </div>
 
-        <div className="my-posts-filters" aria-label="Filter posts by status">
+        <div
+          className="my-posts-filters"
+          aria-label="Filter posts by status"
+        >
           {filters.map((filter) => (
             <button
               type="button"
@@ -206,15 +198,16 @@ export default function MyPosts() {
             <p>{error}</p>
             <button
               type="button"
-              onClick={() => window.location.reload()}
+              onClick={loadPosts}
+              disabled={loading}
             >
-              Try again
+              {loading ? "Retrying..." : "Try again"}
             </button>
           </div>
         )}
 
         {loading ? (
-          <div className="my-posts-empty">
+          <div className="my-posts-empty" aria-live="polite">
             <span className="my-posts-empty-icon">◷</span>
             <h2>Loading your posts</h2>
             <p>Fetching your latest articles from BlogForge.</p>
@@ -244,9 +237,10 @@ export default function MyPosts() {
             <table className="my-posts-table">
               <thead>
                 <tr>
-                  <th>Article</th>
-                  <th>Status</th>
-                  <th>Created</th>
+                  <th scope="col">Article</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Created</th>
+                  <th scope="col">Action</th>
                 </tr>
               </thead>
 
@@ -264,7 +258,9 @@ export default function MyPosts() {
                         <div>
                           <strong>{post.title || "Untitled post"}</strong>
                           <span>
-                            {post.slug ? `/${post.slug}` : "BlogForge article"}
+                            {post.slug
+                              ? `/${post.slug}`
+                              : "BlogForge article"}
                           </span>
                         </div>
                       </div>
@@ -272,17 +268,36 @@ export default function MyPosts() {
 
                     <td>
                       <span
-                        className={`my-posts-status status-${(
-                          post.status || "unknown"
-                        ).toLowerCase()}`}
+                        className={`my-posts-status status-${getStatusClass(
+                          post.status
+                        )}`}
                       >
-                        <span />
+                        <span aria-hidden="true" />
                         {formatStatus(post.status)}
                       </span>
                     </td>
 
                     <td className="my-posts-date">
                       {formatDate(post.createdAt)}
+                    </td>
+
+                    <td>
+                      {post.status === "PUBLISHED" && post.slug ? (
+                        <Link
+                          className="my-posts-action"
+                          to={`/posts/${encodeURIComponent(post.slug)}`}
+                        >
+                          View article
+                        </Link>
+                      ) : (
+                        <span className="my-posts-action-muted">
+                          {post.status === "REJECTED"
+                            ? "Needs revision"
+                            : post.status === "DRAFT"
+                              ? "Draft saved"
+                              : "In progress"}
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))}

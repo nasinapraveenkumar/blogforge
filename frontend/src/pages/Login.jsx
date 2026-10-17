@@ -45,15 +45,31 @@ export default function Login() {
     setLoading(true);
 
     try {
+      // Authenticate the account.
       await api.post("/auth/login", {
         email,
         password: form.password,
       });
 
-      // Verify that the backend recognizes the login session.
-      await api.get("/auth/me");
+      // Read the actual authenticated user's role from the backend.
+      const meResponse = await api.get("/auth/me");
+      const user = meResponse.data?.data;
 
+      if (!user) {
+        throw new Error("Unable to retrieve the authenticated user.");
+      }
+
+      const role = String(user.role || "USER").toUpperCase();
+
+      // Moderators and admins enter the moderation workspace.
+      if (role === "MODERATOR" || role === "ADMIN") {
+        navigate("/moderation", { replace: true });
+        return;
+      }
+
+      // Normal users enter their dashboard.
       const requestedPath = location.state?.from?.pathname;
+
       const destination =
         requestedPath?.startsWith("/dashboard")
           ? requestedPath
@@ -70,7 +86,8 @@ export default function Login() {
         setError(message);
       } else {
         setError(
-          "Unable to log in. Please check your connection and try again."
+          err.message ||
+            "Unable to log in. Please check your connection and try again."
         );
       }
     } finally {

@@ -1,3 +1,4 @@
+
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../services/api";
@@ -23,7 +24,7 @@ function getPostList(responseData) {
 }
 
 function getPostText(post) {
-  const value = post.excerpt || post.content || post.body || "";
+  const value = post?.excerpt || post?.content || post?.body || "";
 
   return typeof value === "string"
     ? value.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim()
@@ -32,35 +33,53 @@ function getPostText(post) {
 
 function getAuthor(post) {
   return (
-    post.author?.name ||
-    post.author?.username ||
-    post.authorName ||
+    post?.author?.name ||
+    post?.author?.username ||
+    post?.authorName ||
     "Community member"
   );
 }
 
 function getTopic(post) {
   const category =
-    typeof post.category === "string"
+    typeof post?.category === "string"
       ? post.category
-      : post.category?.name || post.tags?.[0] || "";
+      : post?.category?.name || "";
 
-  const value = category.toLowerCase();
+  const firstTag = post?.tags?.[0];
+
+  const tagName =
+    typeof firstTag === "string"
+      ? firstTag
+      : firstTag?.name || "";
+
+  const value = `${category} ${tagName}`.toLowerCase();
 
   if (value.includes("database") || value.includes("mongo")) {
     return "Databases";
   }
-  if (value.includes("devops") || value.includes("deploy")) {
+
+  if (
+    value.includes("devops") ||
+    value.includes("deploy") ||
+    value.includes("docker")
+  ) {
     return "DevOps";
   }
+
   if (value.includes("ai") || value.includes("machine learning")) {
     return "AI & ML";
   }
-  if (value.includes("backend") || value.includes("api") || value.includes("node")) {
+
+  if (
+    value.includes("backend") ||
+    value.includes("api") ||
+    value.includes("node")
+  ) {
     return "Backend";
   }
 
-  return category || "Web Development";
+  return category || tagName || "Web Development";
 }
 
 function formatDate(date) {
@@ -77,6 +96,12 @@ function formatDate(date) {
     month: "short",
     year: "numeric",
   });
+}
+
+function getArticleUrl(post) {
+  return post?.slug
+    ? `/posts/${encodeURIComponent(post.slug)}`
+    : null;
 }
 
 function Home() {
@@ -140,6 +165,7 @@ function Home() {
     <main className="home-page">
       <div className="home-atmosphere" aria-hidden="true" />
 
+      {/* Hero */}
       <section className="home-hero">
         <div className="hero-copy">
           <div className="hero-eyebrow">
@@ -161,7 +187,10 @@ function Home() {
           </p>
 
           <div className="hero-actions">
-            <Link to="/register" className="home-button home-button-primary">
+            <Link
+              to="/register"
+              className="home-button home-button-primary"
+            >
               Start writing <span aria-hidden="true">↗</span>
             </Link>
 
@@ -209,7 +238,9 @@ function Home() {
                 <span className="code-muted">03</span>
                 <span className="code-indent" />
                 <span className="code-purple">return</span>{" "}
-                <span className="code-yellow">"Something meaningful"</span>;
+                <span className="code-yellow">
+                  "Something meaningful"
+                </span>;
               </p>
               <p>
                 <span className="code-muted">04</span> {"}"}
@@ -253,6 +284,7 @@ function Home() {
         </div>
       </section>
 
+      {/* Community strip */}
       <section className="home-community-strip">
         <div className="community-strip-copy">
           <span className="community-strip-indicator" />
@@ -263,11 +295,14 @@ function Home() {
         </span>
       </section>
 
+      {/* Public blog feed */}
       <section className="home-feed" id="latest-stories">
         <div className="feed-heading">
           <div>
             <p className="feed-eyebrow">THE BLOGFORGE JOURNAL</p>
-            <h2>Ideas from the community<span>.</span></h2>
+            <h2>
+              Ideas from the community<span>.</span>
+            </h2>
             <p className="feed-subtitle">
               Practical lessons, thoughtful experiments, and stories from
               developers building in the real world.
@@ -280,8 +315,12 @@ function Home() {
           </div>
         </div>
 
+        {/* Search and topic filters */}
         <div className="feed-toolbar">
-          <div className="topic-filters" aria-label="Filter articles by topic">
+          <div
+            className="topic-filters"
+            aria-label="Filter articles by topic"
+          >
             {topics.map((topic) => (
               <button
                 type="button"
@@ -321,6 +360,7 @@ function Home() {
           </label>
         </div>
 
+        {/* Loading state */}
         {loading && (
           <div className="feed-state glass-surface">
             <span className="loading-orb" />
@@ -329,6 +369,7 @@ function Home() {
           </div>
         )}
 
+        {/* Error state */}
         {!loading && error && (
           <div className="feed-state glass-surface">
             <span className="state-icon state-icon-error">!</span>
@@ -344,6 +385,7 @@ function Home() {
           </div>
         )}
 
+        {/* Empty state */}
         {!loading && !error && filteredPosts.length === 0 && (
           <div className="feed-state glass-surface">
             <span className="state-icon">✳</span>
@@ -357,6 +399,7 @@ function Home() {
                 ? "Try another search or choose a different topic."
                 : "Published articles will appear here when they're ready."}
             </p>
+
             {(search || activeTopic !== "All topics") && (
               <button
                 type="button"
@@ -372,43 +415,85 @@ function Home() {
           </div>
         )}
 
+        {/* Stories */}
         {!loading && !error && featuredPost && (
           <>
             <div className="featured-layout">
-              <article className="featured-story glass-surface">
-                <div className="featured-story-top">
-                  <span className="story-label">
-                    <span className="story-label-dot" />
-                    FEATURED STORY
-                  </span>
-                  <span className="story-date">
-                    {formatDate(featuredPost.createdAt)}
-                  </span>
-                </div>
-
-                <div className="featured-story-content">
-                  <p className="story-category">{getTopic(featuredPost)}</p>
-                  <h3>{featuredPost.title || "Untitled story"}</h3>
-                  <p className="story-excerpt">
-                    {getPostText(featuredPost).slice(0, 230) ||
-                      "A new idea from the BlogForge community. Explore what the author has been building and learning."}
-                    {getPostText(featuredPost).length > 230 ? "..." : ""}
-                  </p>
-                </div>
-
-                <div className="story-footer">
-                  <div className="author-avatar">
-                    {getAuthor(featuredPost).charAt(0).toUpperCase()}
+              {/* Clickable featured story */}
+              {getArticleUrl(featuredPost) ? (
+                <Link
+                  to={getArticleUrl(featuredPost)}
+                  className="featured-story glass-surface home-story-link"
+                  aria-label={`Read ${featuredPost.title || "featured story"}`}
+                >
+                  <div className="featured-story-top">
+                    <span className="story-label">
+                      <span className="story-label-dot" />
+                      FEATURED STORY
+                    </span>
+                    <span className="story-date">
+                      {formatDate(
+                        featuredPost.publishedAt || featuredPost.createdAt
+                      )}
+                    </span>
                   </div>
-                  <div className="author-details">
-                    <strong>{getAuthor(featuredPost)}</strong>
-                    <span>Community contributor</span>
+
+                  <div className="featured-story-content">
+                    <p className="story-category">
+                      {getTopic(featuredPost)}
+                    </p>
+                    <h3>{featuredPost.title || "Untitled story"}</h3>
+                    <p className="story-excerpt">
+                      {getPostText(featuredPost).slice(0, 230) ||
+                        "A new idea from the BlogForge community. Explore what the author has been building and learning."}
+                      {getPostText(featuredPost).length > 230 ? "..." : ""}
+                    </p>
                   </div>
-                  <span className="story-read-mark" aria-hidden="true">
-                    ↗
-                  </span>
-                </div>
-              </article>
+
+                  <div className="story-footer">
+                    <div className="author-avatar">
+                      {getAuthor(featuredPost).charAt(0).toUpperCase()}
+                    </div>
+                    <div className="author-details">
+                      <strong>{getAuthor(featuredPost)}</strong>
+                      <span>Community contributor</span>
+                    </div>
+                    <span className="story-read-mark" aria-hidden="true">
+                      ↗
+                    </span>
+                  </div>
+                </Link>
+              ) : (
+                <article className="featured-story glass-surface">
+                  <div className="featured-story-top">
+                    <span className="story-label">
+                      <span className="story-label-dot" />
+                      FEATURED STORY
+                    </span>
+                    <span className="story-date">
+                      {formatDate(featuredPost.createdAt)}
+                    </span>
+                  </div>
+                  <div className="featured-story-content">
+                    <p className="story-category">
+                      {getTopic(featuredPost)}
+                    </p>
+                    <h3>{featuredPost.title || "Untitled story"}</h3>
+                    <p className="story-excerpt">
+                      {getPostText(featuredPost)}
+                    </p>
+                  </div>
+                  <div className="story-footer">
+                    <div className="author-avatar">
+                      {getAuthor(featuredPost).charAt(0).toUpperCase()}
+                    </div>
+                    <div className="author-details">
+                      <strong>{getAuthor(featuredPost)}</strong>
+                      <span>Community contributor</span>
+                    </div>
+                  </div>
+                </article>
+              )}
 
               <aside className="feed-side-panel glass-surface">
                 <div className="side-panel-icon">✳</div>
@@ -425,6 +510,7 @@ function Home() {
               </aside>
             </div>
 
+            {/* Latest story cards */}
             {latestPosts.length > 0 && (
               <div className="latest-stories">
                 <div className="latest-heading">
@@ -439,50 +525,100 @@ function Home() {
                 </div>
 
                 <div className="stories-grid">
-                  {latestPosts.map((post) => (
-                    <article
-                      className="story-card glass-surface"
-                      key={post._id || post.id || post.slug || post.title}
-                    >
-                      <div className="story-card-top">
-                        <span className="story-category-pill">
-                          {getTopic(post)}
-                        </span>
-                        <span className="story-card-arrow" aria-hidden="true">
-                          ↗
-                        </span>
-                      </div>
+                  {latestPosts.map((post) => {
+                    const articleUrl = getArticleUrl(post);
 
-                      <h4>{post.title || "Untitled story"}</h4>
-
-                      <p className="story-card-excerpt">
-                        {getPostText(post).slice(0, 145) ||
-                          "Discover an idea, an experiment, or a lesson shared by a fellow developer."}
-                        {getPostText(post).length > 145 ? "..." : ""}
-                      </p>
-
-                      <div className="story-card-footer">
-                        <div className="author-avatar author-avatar-small">
-                          {getAuthor(post).charAt(0).toUpperCase()}
+                    const cardContent = (
+                      <>
+                        <div className="story-card-top">
+                          <span className="story-category-pill">
+                            {getTopic(post)}
+                          </span>
+                          <span
+                            className="story-card-arrow"
+                            aria-hidden="true"
+                          >
+                            ↗
+                          </span>
                         </div>
-                        <div className="story-card-author">
-                          <strong>{getAuthor(post)}</strong>
-                          <span>{formatDate(post.createdAt)}</span>
+
+                        <h4>{post.title || "Untitled story"}</h4>
+
+                        <p className="story-card-excerpt">
+                          {getPostText(post).slice(0, 145) ||
+                            "Discover an idea, an experiment, or a lesson shared by a fellow developer."}
+                          {getPostText(post).length > 145 ? "..." : ""}
+                        </p>
+
+                        {/* Display post tags */}
+                        {Array.isArray(post.tags) && post.tags.length > 0 && (
+                          <div className="story-card-tags">
+                            {post.tags.slice(0, 3).map((tag, index) => {
+                              const tagName =
+                                typeof tag === "string"
+                                  ? tag
+                                  : tag?.name || "";
+
+                              if (!tagName) return null;
+
+                              return (
+                                <span
+                                  className="story-card-tag"
+                                  key={tag?._id || tagName || index}
+                                >
+                                  #{tagName}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        <div className="story-card-footer">
+                          <div className="author-avatar author-avatar-small">
+                            {getAuthor(post).charAt(0).toUpperCase()}
+                          </div>
+                          <div className="story-card-author">
+                            <strong>{getAuthor(post)}</strong>
+                            <span>
+                              {formatDate(post.publishedAt || post.createdAt)}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    </article>
-                  ))}
+                      </>
+                    );
+
+                    return articleUrl ? (
+                      <Link
+                        to={articleUrl}
+                        className="story-card glass-surface home-story-link"
+                        key={post._id || post.id || post.slug || post.title}
+                        aria-label={`Read ${post.title || "article"}`}
+                      >
+                        {cardContent}
+                      </Link>
+                    ) : (
+                      <article
+                        className="story-card glass-surface"
+                        key={post._id || post.id || post.title}
+                      >
+                        {cardContent}
+                      </article>
+                    );
+                  })}
                 </div>
               </div>
             )}
           </>
         )}
 
+        {/* Bottom call to action */}
         <div className="home-bottom-cta">
           <div>
             <span className="bottom-cta-label">MADE FOR CURIOUS MINDS</span>
             <h3>Have something worth sharing?</h3>
-            <p>Your next post might be exactly what another developer needs.</p>
+            <p>
+              Your next post might be exactly what another developer needs.
+            </p>
           </div>
           <Link to="/register" className="home-button home-button-primary">
             Join BlogForge <span aria-hidden="true">↗</span>
@@ -490,6 +626,7 @@ function Home() {
         </div>
       </section>
 
+      {/* Footer */}
       <footer className="home-footer">
         <Link to="/" className="footer-brand">
           <span className="footer-brand-icon">B</span>

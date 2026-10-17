@@ -1,3 +1,4 @@
+
 import mongoose from "mongoose";
 import { POST_STATUS } from "./post.constants.js";
 
@@ -27,8 +28,8 @@ const postSchema = new mongoose.Schema(
 
     excerpt: {
       type: String,
-      maxlength: 300,
       trim: true,
+      maxlength: 300,
     },
 
     author: {
@@ -44,15 +45,21 @@ const postSchema = new mongoose.Schema(
       default: POST_STATUS.DRAFT,
       index: true,
     },
+
     moderation: {
-  moderator: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-  },
-  claimedAt: {
-    type: Date,
-  },
-},
+      moderator: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+      claimedAt: {
+        type: Date,
+      },
+      rejectionReason: {
+        type: String,
+        trim: true,
+        maxlength: 1000,
+      },
+    },
 
     category: {
       type: mongoose.Schema.Types.ObjectId,

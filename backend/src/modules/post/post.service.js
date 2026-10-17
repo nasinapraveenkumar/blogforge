@@ -1,12 +1,14 @@
+
 import Post from "./post.model.js";
 import { generateSlug } from "../../utils/slug.js";
+import { resolveTagIds } from "./resolveTags.js";
 
 export const createPost = async ({
   title,
   content,
   excerpt,
   category,
-  tags,
+  tags = [],
   coverImage,
   authorId,
 }) => {
@@ -18,13 +20,16 @@ export const createPost = async ({
     throw new Error("A post with this URL already exists");
   }
 
+  // Convert tag names into MongoDB Tag document IDs.
+  const tagIds = await resolveTagIds(tags);
+
   const post = await Post.create({
     title,
     slug,
     content,
     excerpt,
     category,
-    tags,
+    tags: tagIds,
     coverImage,
     author: authorId,
   });
@@ -44,7 +49,8 @@ export const getPublishedPosts = async (page = 1, limit = 10) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate("author", "name"),
+      .populate("author", "name")
+      .populate("tags", "name slug"),
 
     Post.countDocuments(filter),
   ]);
@@ -68,7 +74,9 @@ export const getPublishedPostBySlug = async (slug) => {
   const post = await Post.findOne({
     slug,
     status: "PUBLISHED",
-  }).populate("author", "name");
+  })
+    .populate("author", "name")
+    .populate("tags", "name slug");
 
   if (!post) {
     throw new Error("Post not found");
@@ -83,6 +91,7 @@ export const updatePost = async ({
   title,
   content,
   excerpt,
+  tags,
 }) => {
   const post = await Post.findOne({
     _id: postId,
@@ -94,34 +103,44 @@ export const updatePost = async ({
     throw new Error("Post not found or you are not the owner");
   }
 
-  const newSlug = generateSlug(title);
+  if (title !== undefined) {
+    const newSlug = generateSlug(title);
 
-  if (newSlug !== post.slug) {
-    const existingPost = await Post.findOne({
-      slug: newSlug,
-      _id: { $ne: postId },
-    });
+    if (newSlug !== post.slug) {
+      const existingPost = await Post.findOne({
+        slug: newSlug,
+        _id: { $ne: postId },
+      });
 
-    if (existingPost) {
-      throw new Error("A post with this URL already exists");
+      if (existingPost) {
+        throw new Error("A post with this URL already exists");
+      }
+
+      post.slug = newSlug;
     }
 
-    post.slug = newSlug;
+    post.title = title;
   }
 
-  post.title = title;
-  post.content = content;
-  post.excerpt = excerpt;
+  if (content !== undefined) {
+    post.content = content;
+  }
+
+  if (excerpt !== undefined) {
+    post.excerpt = excerpt;
+  }
+
+  // Only change tags when the request includes them.
+  if (tags !== undefined) {
+    post.tags = await resolveTagIds(tags);
+  }
 
   await post.save();
 
   return post;
 };
 
-export const submitPost = async ({
-  postId,
-  authorId,
-}) => {
+export const submitPost = async ({ postId, authorId }) => {
   const post = await Post.findOne({
     _id: postId,
     author: authorId,
@@ -138,10 +157,13 @@ export const submitPost = async ({
 
   return post;
 };
+
 export const getMyPosts = async (authorId) => {
   const posts = await Post.find({
     author: authorId,
-  }).sort({ createdAt: -1 });
+  })
+    .sort({ createdAt: -1 })
+    .populate("tags", "name slug");
 
   const counts = await Post.aggregate([
     {
