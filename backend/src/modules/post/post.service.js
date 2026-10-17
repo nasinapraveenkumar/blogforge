@@ -138,3 +138,40 @@ export const submitPost = async ({
 
   return post;
 };
+export const getMyPosts = async (authorId) => {
+  const posts = await Post.find({
+    author: authorId,
+  }).sort({ createdAt: -1 });
+
+  const counts = await Post.aggregate([
+    {
+      $match: {
+        author: new Post.base.Types.ObjectId(authorId),
+      },
+    },
+    {
+      $group: {
+        _id: "$status",
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+
+  const statusCounts = Object.fromEntries(
+    counts.map((item) => [item._id, item.count])
+  );
+
+  return {
+    posts,
+    stats: {
+      totalPosts: posts.length,
+      published: statusCounts.PUBLISHED || 0,
+      pending:
+        (statusCounts.SUBMITTED || 0) +
+        (statusCounts.UNDER_REVIEW || 0) +
+        (statusCounts.APPROVED || 0),
+      drafts: statusCounts.DRAFT || 0,
+      rejected: statusCounts.REJECTED || 0,
+    },
+  };
+};

@@ -4,6 +4,8 @@ import {
   getPublishedPostBySlug,
   updatePost,
   submitPost,
+  getMyPosts,
+
 } from "./post.service.js";
 
 import {
@@ -120,6 +122,24 @@ export const submit = async (req, res) => {
     res.status(400).json({
       success: false,
       message: error.message,
+    });
+  }
+};
+
+export const getMine = async (req, res) => {
+  try {
+    const result = await getMyPosts(req.user._id);
+
+    res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    console.error("Failed to fetch user's posts:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch your posts",
     });
   }
 };

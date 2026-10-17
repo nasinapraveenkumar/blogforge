@@ -1,0 +1,237 @@
+
+.create-post-page {
+  min-height: 100vh;
+  padding: 42px 24px 80px;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(112, 225, 194, 0.13), transparent 32%),
+    #eaf5f3;
+  color: #142b39;
+}
+
+.create-post-shell {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.create-post-header {
+  margin-bottom: 30px;
+}
+
+.create-post-back {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 32px;
+  padding: 9px 14px;
+  border: 1px solid rgba(20, 43, 57, 0.13);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.55);
+  color: #243746;
+  font: inherit;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.create-post-back:hover {
+  background: #fff;
+  transform: translateX(-2px);
+}
+
+.create-post-eyebrow {
+  display: block;
+  margin-bottom: 12px;
+  color: #0b9b76;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+.create-post-header h1 {
+  margin: 0;
+  max-width: 700px;
+  font-size: clamp(32px, 5vw, 48px);
+  line-height: 1.12;
+  letter-spacing: -1.8px;
+}
+
+.create-post-header h1 span {
+  color: #0b9b76;
+}
+
+.create-post-header p {
+  max-width: 600px;
+  margin: 16px 0 0;
+  color: #60727d;
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.create-post-form {
+  padding: clamp(20px, 4vw, 38px);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 18px 55px rgba(20, 43, 57, 0.07);
+  backdrop-filter: blur(18px);
+}
+
+.create-post-field {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-bottom: 25px;
+}
+
+.create-post-field label {
+  color: #243746;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.create-post-field input,
+.create-post-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px 15px;
+  border: 1px solid #d8e5e2;
+  border-radius: 11px;
+  outline: none;
+  background: rgba(255, 255, 255, 0.82);
+  color: #142b39;
+  font: inherit;
+  font-size: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.create-post-field input::placeholder,
+.create-post-field textarea::placeholder {
+  color: #9aa9ae;
+}
+
+.create-post-field input:focus,
+.create-post-field textarea:focus {
+  border-color: #70e1c2;
+  box-shadow: 0 0 0 4px rgba(112, 225, 194, 0.16);
+}
+
+.create-post-field textarea {
+  resize: vertical;
+  min-height: 100px;
+  line-height: 1.8;
+}
+
+.create-post-field textarea[name="content"] {
+  min-height: 300px;
+}
+
+.create-post-hint {
+  color: #84949a;
+  font-size: 12px;
+}
+
+.create-post-message {
+  margin-bottom: 22px;
+  padding: 13px 15px;
+  border-radius: 10px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.error-message {
+  border: 1px solid #f2c7c7;
+  background: #fff0f0;
+  color: #a62e2e;
+}
+
+.success-message {
+  border: 1px solid #b8e9d9;
+  background: #e9faf3;
+  color: #087b5d;
+}
+
+.create-post-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding-top: 24px;
+  border-top: 1px solid #e1ece9;
+}
+
+.create-post-footer-note {
+  max-width: 280px;
+  color: #829198;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.create-post-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.create-post-secondary,
+.create-post-primary {
+  min-height: 44px;
+  padding: 0 17px;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: transform 0.2s, background 0.2s;
+}
+
+.create-post-secondary {
+  border: 1px solid #cfdfdb;
+  background: rgba(255, 255, 255, 0.7);
+  color: #243746;
+}
+
+.create-post-primary {
+  border: 1px solid #0b9b76;
+  background: #0b9b76;
+  color: white;
+}
+
+.create-post-secondary:hover,
+.create-post-primary:hover {
+  transform: translateY(-2px);
+}
+
+.create-post-secondary:disabled,
+.create-post-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+@media (max-width: 600px) {
+  .create-post-page {
+    padding: 25px 14px 50px;
+  }
+
+  .create-post-header h1 {
+    letter-spacing: -1px;
+  }
+
+  .create-post-form {
+    border-radius: 16px;
+  }
+
+  .create-post-footer {
+    align-items: stretch;
+  }
+
+  .create-post-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .create-post-secondary,
+  .create-post-primary {
+    width: 100%;
+  }
+}
