@@ -44,10 +44,15 @@ function Navbar() {
             Home
           </NavLink>
 
-          <a href="/#community" className="navbar-link" onClick={closeMenu}>
-            Community
-          </a>
-
+          <NavLink
+  to="/community"
+  className={({ isActive }) =>
+    `navbar-link ${isActive ? "active" : ""}`
+  }
+  onClick={closeMenu}
+>
+  Community
+</NavLink>
           <NavLink
             to="/login"
             className={({ isActive }) =>

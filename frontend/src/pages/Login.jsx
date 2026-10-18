@@ -45,15 +45,19 @@ export default function Login() {
     setLoading(true);
 
     try {
-      // Authenticate the account.
       await api.post("/auth/login", {
         email,
         password: form.password,
       });
 
-      // Read the actual authenticated user's role from the backend.
       const meResponse = await api.get("/auth/me");
-      const user = meResponse.data?.data;
+
+      // Support common API response formats.
+      const payload = meResponse.data;
+      const user =
+        payload?.data?.user ||
+        payload?.data ||
+        payload?.user;
 
       if (!user) {
         throw new Error("Unable to retrieve the authenticated user.");
@@ -61,13 +65,19 @@ export default function Login() {
 
       const role = String(user.role || "USER").toUpperCase();
 
-      // Moderators and admins enter the moderation workspace.
-      if (role === "MODERATOR" || role === "ADMIN") {
+      // ADMIN gets the Admin Dashboard.
+      if (role === "ADMIN") {
+        navigate("/admin", { replace: true });
+        return;
+      }
+
+      // MODERATOR gets the moderation workspace.
+      if (role === "MODERATOR") {
         navigate("/moderation", { replace: true });
         return;
       }
 
-      // Normal users enter their dashboard.
+      // Normal users get their dashboard.
       const requestedPath = location.state?.from?.pathname;
 
       const destination =
@@ -80,8 +90,12 @@ export default function Login() {
       const status = err.response?.status;
       const message = err.response?.data?.message;
 
-      if (status === 401 || status === 403) {
+      if (status === 401) {
         setError("Invalid email or password. Please try again.");
+      } else if (status === 403) {
+        setError(
+          message || "You do not have permission to perform this action."
+        );
       } else if (typeof message === "string") {
         setError(message);
       } else {

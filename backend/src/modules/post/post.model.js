@@ -46,20 +46,34 @@ const postSchema = new mongoose.Schema(
       index: true,
     },
 
+   
     moderation: {
       moderator: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
+        default: null,
       },
       claimedAt: {
         type: Date,
+        default: null,
+      },
+      reviewedAt: {
+        type: Date,
+        default: null,
+      },
+      action: {
+        type: String,
+        enum: ["APPROVE", "REJECT", "REMOVE"],
+        default: null,
       },
       rejectionReason: {
         type: String,
         trim: true,
         maxlength: 1000,
+        default: "",
       },
     },
+
 
     category: {
       type: mongoose.Schema.Types.ObjectId,

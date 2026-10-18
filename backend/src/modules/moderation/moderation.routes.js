@@ -6,10 +6,12 @@ import {
   approve,
   reject,
   getHistory,
+  getAllHistory,
 } from "./moderation.controller.js";
 
 const router = express.Router();
 
+// Claim the next submitted post for moderation
 router.post(
   "/queue/claim-next",
   authenticate,
@@ -17,6 +19,7 @@ router.post(
   claimNext
 );
 
+// Approve and publish an assigned post
 router.post(
   "/posts/:id/approve",
   authenticate,
@@ -24,6 +27,7 @@ router.post(
   approve
 );
 
+// Reject an assigned post
 router.post(
   "/posts/:id/reject",
   authenticate,
@@ -31,11 +35,21 @@ router.post(
   reject
 );
 
+// Get moderation history for a specific post
 router.get(
   "/posts/:id/history",
   authenticate,
   authorize("MODERATOR", "ADMIN"),
   getHistory
+);
+
+// Get paginated history of completed moderation actions
+// Optional query parameters: ?page=1&limit=20
+router.get(
+  "/history",
+  authenticate,
+  authorize("MODERATOR", "ADMIN"),
+  getAllHistory
 );
 
 export default router;

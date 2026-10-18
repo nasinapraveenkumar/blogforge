@@ -72,18 +72,23 @@
   gap: clamp(12px, 2.5vw, 30px);
 }
 
+/* Navigation links */
 .navbar-link {
   position: relative;
   padding: 10px 0;
 
-  color: rgba(240, 250, 247, 0.76);
+  color: rgba(240, 250, 247, 0.68);
   font-size: 0.9rem;
   font-weight: 600;
   text-decoration: none;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
 
   transition: color 180ms ease;
 }
 
+/* Underline animation */
 .navbar-link::after {
   position: absolute;
   right: 0;
@@ -100,9 +105,18 @@
   transition: transform 180ms ease;
 }
 
-.navbar-link:hover,
+/* Hover: slightly brighter text, no background */
+.navbar-link:hover {
+  color: rgba(240, 250, 247, 0.92);
+  background: transparent;
+}
+
+/* Active link: faded text with underline only */
 .navbar-link.active {
-  color: #a8f0dc;
+  color: rgba(240, 250, 247, 0.82);
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .navbar-link:hover::after,
@@ -110,6 +124,7 @@
   transform: scaleX(1);
 }
 
+/* Get started button */
 .navbar-register {
   display: inline-flex;
   min-height: 42px;
@@ -145,6 +160,7 @@
   box-shadow: 0 8px 24px rgba(67, 211, 176, 0.24);
 }
 
+/* Mobile menu button */
 .navbar-menu-toggle {
   display: none;
   width: 42px;
@@ -214,16 +230,24 @@
 
   .navbar-link {
     padding: 12px;
-    border-radius: 10px;
+    color: rgba(240, 250, 247, 0.76);
+    border-radius: 0;
+    background: transparent;
   }
 
+  /* No underline animation in the stacked mobile menu */
   .navbar-link::after {
     display: none;
   }
 
-  .navbar-link:hover,
+  .navbar-link:hover {
+    color: #ffffff;
+    background: transparent;
+  }
+
   .navbar-link.active {
-    background: rgba(112, 225, 194, 0.1);
+    color: rgba(240, 250, 247, 0.9);
+    background: transparent;
   }
 
   .navbar-register {
@@ -244,6 +268,7 @@
   }
 }
 
+/* Respect reduced-motion preferences */
 @media (prefers-reduced-motion: reduce) {
   .navbar,
   .navbar * {

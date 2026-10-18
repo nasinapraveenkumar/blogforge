@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router-dom";
 import api from "../services/api";
 import "./Article.css";
 
+
 function formatDate(date) {
   if (!date) return "Recently published";
 
@@ -51,6 +52,12 @@ export default function Article() {
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [bookmarkLoading, setBookmarkLoading] = useState(false);
   const [bookmarkMessage, setBookmarkMessage] = useState("");
+
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportMessage, setReportMessage] = useState("");
+  const [reportError, setReportError] = useState("");
 
   const [commentText, setCommentText] = useState("");
   const [editingCommentId, setEditingCommentId] = useState(null);
@@ -141,6 +148,10 @@ export default function Article() {
       setLiked(false);
       setIsBookmarked(false);
       setBookmarkMessage("");
+      setReportOpen(false);
+      setReportReason("");
+      setReportMessage("");
+      setReportError("");
       setCommentError("");
       setCommentMessage("");
 
@@ -274,6 +285,52 @@ export default function Article() {
       );
     } finally {
       setBookmarkLoading(false);
+    }
+  }
+
+  function handleCancelReport() {
+    setReportOpen(false);
+    setReportReason("");
+    setReportError("");
+  }
+
+  async function handleSubmitReport(event) {
+    event.preventDefault();
+
+    if (!userId || !postId || reportSubmitting) return;
+
+    const reason = reportReason.trim();
+
+    if (reason.length < 5) {
+      setReportError("Please enter at least 5 characters explaining the issue.");
+      return;
+    }
+
+    if (reason.length > 1000) {
+      setReportError("Your reason must be 1000 characters or fewer.");
+      return;
+    }
+
+    setReportSubmitting(true);
+    setReportError("");
+    setReportMessage("");
+
+    try {
+      const response = await api.post(`/reports/${postId}`, { reason });
+      setReportMessage(
+        response.data?.message || "Thank you. Your report has been submitted for review."
+      );
+      setReportReason("");
+      setReportOpen(false);
+    } catch (err) {
+      const message = getErrorMessage(err, "Unable to submit your report.");
+      setReportError(
+        err.response?.status === 409
+          ? "You've already reported this post. Our moderation team can review your existing report."
+          : message
+      );
+    } finally {
+      setReportSubmitting(false);
     }
   }
 
@@ -554,6 +611,84 @@ export default function Article() {
           </p>
         )}
 
+        <section className="article-report-section" aria-label="Report this post">
+          <div className="article-report-intro">
+            <div>
+              <h2>Something wrong with this story?</h2>
+              <p>Let the BlogForge moderation team know. Reports are reviewed privately.</p>
+            </div>
+
+            {!reportOpen && userId && (
+              <button
+                type="button"
+                className="article-report-toggle"
+                onClick={() => {
+                  setReportOpen(true);
+                  setReportError("");
+                  setReportMessage("");
+                }}
+              >
+                Report this post
+              </button>
+            )}
+
+            {!userId && (
+              <Link to="/login" className="article-report-toggle">
+                Sign in to report
+              </Link>
+            )}
+          </div>
+
+          {reportMessage && (
+            <p className="article-report-feedback article-report-success" role="status">
+              {reportMessage}
+            </p>
+          )}
+
+          {reportError && (
+            <p className="article-report-feedback article-report-error" role="alert">
+              {reportError}
+            </p>
+          )}
+
+          {reportOpen && userId && (
+            <form className="article-report-form" onSubmit={handleSubmitReport}>
+              <label htmlFor="article-report-reason">Why are you reporting this post?</label>
+              <textarea
+                id="article-report-reason"
+                value={reportReason}
+                onChange={(event) => setReportReason(event.target.value)}
+                placeholder="Describe the issue (at least 5 characters)..."
+                minLength={5}
+                maxLength={1000}
+                rows={4}
+                required
+                disabled={reportSubmitting}
+              />
+              <div className="article-report-form-footer">
+                <span>{reportReason.length}/1000 characters</span>
+                <div className="article-report-actions">
+                  <button
+                    type="button"
+                    className="article-secondary-button"
+                    onClick={handleCancelReport}
+                    disabled={reportSubmitting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="article-primary-button"
+                    disabled={reportSubmitting || reportReason.trim().length < 5}
+                  >
+                    {reportSubmitting ? "Submitting..." : "Submit report"}
+                  </button>
+                </div>
+              </div>
+            </form>
+          )}
+        </section>
+
         <section
           className="article-comments"
           aria-labelledby="comments-heading"
@@ -764,9 +899,9 @@ export default function Article() {
             </div>
           </div>
 
-          <Link to="/" className="article-back-button">
-            Explore more stories
-          </Link>
+          <Link to="/explore" className="article-back-button">
+  Explore more stories
+</Link>
         </footer>
       </article>
     </main>

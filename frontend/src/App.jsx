@@ -1,4 +1,5 @@
 
+import { useEffect, useState } from "react";
 import {
   BrowserRouter,
   Routes,
@@ -6,6 +7,7 @@ import {
   useLocation,
 } from "react-router-dom";
 
+import api from "./services/api";
 import Home from "./pages/Home";
 import Navbar from "./components/Navbar";
 import Dashboard from "./pages/Dashboard";
@@ -17,72 +19,111 @@ import CreatePost from "./pages/CreatePost";
 import Moderation from "./pages/Moderation";
 import Article from "./pages/Article";
 import Bookmarks from "./pages/Bookmarks";
+import DashboardLayout from "./layouts/DashboardLayout";
+import WorkspacePlaceholder from "./components/WorkspacePlaceholder";
+
+import Explore from "./pages/Explore";
+import Reports from "./pages/Reports";
+import MyReports from "./pages/MyReports";
+import ProfileSettings from "./pages/ProfileSettings";
+import Community from "./pages/Community";
+import AdminDashboard from "./pages/AdminDashboard";
 
 function AppLayout() {
   const location = useLocation();
   const pathname = location.pathname;
 
-  const isDashboard = pathname.startsWith("/dashboard");
-  const isMyPosts = pathname.startsWith("/my-posts");
+  const [authenticated, setAuthenticated] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
 
-  const isCreatePost =
-    pathname.startsWith("/create-post") ||
-    pathname.startsWith("/write");
+  useEffect(() => {
+    let active = true;
 
-  const isModeration = pathname.startsWith("/moderation");
+    async function checkSession() {
+      try {
+        await api.get("/auth/me");
 
-  const hideNavbar =
-    isDashboard ||
-    isMyPosts ||
-    isCreatePost ||
-    isModeration;
+        if (active) {
+          setAuthenticated(true);
+        }
+      } catch {
+        if (active) {
+          setAuthenticated(false);
+        }
+      } finally {
+        if (active) {
+          setCheckingSession(false);
+        }
+      }
+    }
+
+    checkSession();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const isPublicPage =
+    pathname === "/" ||
+    pathname === "/login" ||
+    pathname === "/register" ||
+    pathname === "/explore" ||
+    pathname === "/community" ||
+    pathname.startsWith("/posts/");
+
+  // Show the public navbar on public pages regardless of login status.
+  const showMainNavbar = isPublicPage && !checkingSession;
 
   return (
     <>
-      {!hideNavbar && <Navbar />}
+      {showMainNavbar && <Navbar />}
 
       <Routes>
         {/* Public pages */}
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-
-        {/* Public article details */}
         <Route path="/posts/:slug" element={<Article />} />
+        <Route path="/explore" element={<Explore />} />
+        <Route path="/community" element={<Community />} />
 
-        {/* Protected pages */}
+        {/* Protected workspace */}
         <Route element={<ProtectedRoute />}>
-          <Route
-            path="/dashboard"
-            element={<Dashboard />}
-          />
+          <Route element={<DashboardLayout />}>
+            <Route path="/dashboard" element={<Dashboard />} />
 
-          <Route
-            path="/my-posts"
-            element={<MyPosts />}
-          />
+            <Route path="/my-posts" element={<MyPosts />} />
+            <Route path="/create-post" element={<CreatePost />} />
+            <Route path="/write" element={<CreatePost />} />
+            <Route path="/edit-post/:id" element={<CreatePost />} />
 
-          <Route
-            path="/create-post"
-            element={<CreatePost />}
-          />
+            <Route path="/bookmarks" element={<Bookmarks />} />
+            <Route path="/settings" element={<ProfileSettings />} />
+            <Route path="/my-reports" element={<MyReports />} />
 
-          <Route
-            path="/write"
-            element={<CreatePost />}
-          />
+            <Route
+              path="/messages"
+              element={
+                <WorkspacePlaceholder
+                  title="Messages"
+                  description="Your conversations will appear here when messaging functionality is implemented."
+                />
+              }
+            />
+          </Route>
 
-          <Route
-            path="/moderation"
-            element={<Moderation />}
-          />
+          {/* Moderation pages */}
+          <Route path="/moderation" element={<Moderation />} />
+          <Route path="/reports" element={<Reports />} />
+
+          {/* Admin dashboard */}
+          <Route path="/admin" element={<AdminDashboard />} />
         </Route>
 
         {/* Unknown URLs */}
         <Route path="*" element={<Home />} />
-        <Route path="/bookmarks" element={<Bookmarks />} />
       </Routes>
-
     </>
   );
 }

@@ -7,6 +7,36 @@ import {
 
 import { likePostSchema } from "./like.validation.js";
 
+const sendError = (res, error, fallbackMessage) => {
+  let statusCode;
+
+  if (Number.isInteger(error.statusCode)) {
+    statusCode = error.statusCode;
+  } else if (error.name === "ZodError") {
+    statusCode = 400;
+  } else if (
+    error.name === "CastError" ||
+    error.name === "ValidationError"
+  ) {
+    statusCode = 400;
+  } else {
+    statusCode = 500;
+  }
+
+  if (statusCode >= 500) {
+    console.error(fallbackMessage, error);
+  }
+
+  return res.status(statusCode).json({
+    success: false,
+    message:
+      statusCode >= 500
+        ? fallbackMessage
+        : error.message,
+  });
+};
+
+// Like a published post.
 export const like = async (req, res) => {
   try {
     const { postId } = likePostSchema.parse({
@@ -24,15 +54,15 @@ export const like = async (req, res) => {
       data,
     });
   } catch (error) {
-    const status = error.code === 11000 ? 409 : 400;
-
-    return res.status(status).json({
-      success: false,
-      message: error.message,
-    });
+    return sendError(
+      res,
+      error,
+      "Failed to like post"
+    );
   }
 };
 
+// Remove the current user's like.
 export const unlike = async (req, res) => {
   try {
     const { postId } = likePostSchema.parse({
@@ -50,13 +80,15 @@ export const unlike = async (req, res) => {
       data,
     });
   } catch (error) {
-    return res.status(400).json({
-      success: false,
-      message: error.message,
-    });
+    return sendError(
+      res,
+      error,
+      "Failed to unlike post"
+    );
   }
 };
 
+// Get a public like count and optional user-specific like status.
 export const getSummary = async (req, res) => {
   try {
     const { postId } = likePostSchema.parse({
@@ -73,9 +105,10 @@ export const getSummary = async (req, res) => {
       data,
     });
   } catch (error) {
-    return res.status(400).json({
-      success: false,
-      message: error.message,
-    });
+    return sendError(
+      res,
+      error,
+      "Failed to fetch like summary"
+    );
   }
 };

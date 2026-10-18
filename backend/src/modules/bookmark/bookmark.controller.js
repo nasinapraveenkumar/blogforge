@@ -7,6 +7,36 @@ import {
 
 import { bookmarkPostSchema } from "./bookmark.validation.js";
 
+const sendError = (res, error, fallbackMessage) => {
+  let statusCode;
+
+  if (Number.isInteger(error.statusCode)) {
+    statusCode = error.statusCode;
+  } else if (error.name === "ZodError") {
+    statusCode = 400;
+  } else if (
+    error.name === "CastError" ||
+    error.name === "ValidationError"
+  ) {
+    statusCode = 400;
+  } else {
+    statusCode = 500;
+  }
+
+  if (statusCode >= 500) {
+    console.error(fallbackMessage, error);
+  }
+
+  return res.status(statusCode).json({
+    success: false,
+    message:
+      statusCode >= 500
+        ? fallbackMessage
+        : error.message,
+  });
+};
+
+// Bookmark a published post.
 export const create = async (req, res) => {
   try {
     const { postId } = bookmarkPostSchema.parse({
@@ -24,15 +54,15 @@ export const create = async (req, res) => {
       data: bookmark,
     });
   } catch (error) {
-    const status = error.name === "ZodError" ? 400 : 400;
-
-    return res.status(status).json({
-      success: false,
-      message: error.message,
-    });
+    return sendError(
+      res,
+      error,
+      "Failed to bookmark post"
+    );
   }
 };
 
+// Remove a bookmark belonging to the logged-in user.
 export const remove = async (req, res) => {
   try {
     const { postId } = bookmarkPostSchema.parse({
@@ -50,13 +80,15 @@ export const remove = async (req, res) => {
       data: bookmark,
     });
   } catch (error) {
-    return res.status(400).json({
-      success: false,
-      message: error.message,
-    });
+    return sendError(
+      res,
+      error,
+      "Failed to remove bookmark"
+    );
   }
 };
 
+// Get the logged-in user's bookmarks.
 export const getAll = async (req, res) => {
   try {
     const bookmarks = await getMyBookmarks(req.user._id);
@@ -67,9 +99,10 @@ export const getAll = async (req, res) => {
       data: bookmarks,
     });
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: "Failed to fetch bookmarks",
-    });
+    return sendError(
+      res,
+      error,
+      "Failed to fetch bookmarks"
+    );
   }
 };

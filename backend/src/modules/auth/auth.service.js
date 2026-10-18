@@ -1,9 +1,23 @@
+
 import bcrypt from "bcryptjs";
 import User from "./auth.model.js";
 import { generateToken } from "../../utils/jwt.js";
 
 export const registerUser = async ({ name, email, password }) => {
-  const existingUser = await User.findOne({ email });
+  const normalizedEmail = email.trim().toLowerCase();
+
+  console.log("Registration database:", User.db.name);
+  console.log("Registration collection:", User.collection.name);
+  console.log("Checking registration email:", normalizedEmail);
+
+  const existingUser = await User.findOne({
+    email: normalizedEmail,
+  });
+
+  console.log(
+    "Duplicate check result:",
+    existingUser ? "FOUND" : "NOT FOUND"
+  );
 
   if (existingUser) {
     throw new Error("User with this email already exists");
@@ -12,8 +26,8 @@ export const registerUser = async ({ name, email, password }) => {
   const hashedPassword = await bcrypt.hash(password, 12);
 
   const user = await User.create({
-    name,
-    email,
+    name: name.trim(),
+    email: normalizedEmail,
     password: hashedPassword,
   });
 
@@ -26,16 +40,27 @@ export const registerUser = async ({ name, email, password }) => {
 };
 
 export const loginUser = async ({ email, password }) => {
-  const user = await User.findOne({ email });
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const user = await User.findOne({
+    email: normalizedEmail,
+  });
 
   if (!user) {
     throw new Error("Invalid email or password");
   }
 
-  const isPasswordValid = await bcrypt.compare(password, user.password);
+  const isPasswordValid = await bcrypt.compare(
+    password,
+    user.password
+  );
 
   if (!isPasswordValid) {
     throw new Error("Invalid email or password");
+  }
+
+  if (!user.isActive) {
+    throw new Error("Your account has been deactivated.");
   }
 
   const token = generateToken({

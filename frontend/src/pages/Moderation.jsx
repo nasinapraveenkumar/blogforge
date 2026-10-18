@@ -15,8 +15,9 @@ function getErrorMessage(error) {
   );
 }
 
-function getPostId(post) {
-  return post?._id || post?.id;
+function getId(value) {
+  if (!value) return "";
+  return typeof value === "string" ? value : value._id || value.id || "";
 }
 
 function getTagName(tag) {
@@ -40,9 +41,22 @@ function formatDate(date) {
   });
 }
 
+function formatDateTime(date) {
+  if (!date) return "Time unavailable";
+
+  const parsedDate = new Date(date);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return "Time unavailable";
+  }
+
+  return parsedDate.toLocaleString("en-IN");
+}
+
 export default function Moderation() {
   const navigate = useNavigate();
 
+  // Post moderation state
   const [post, setPost] = useState(null);
   const [history, setHistory] = useState([]);
   const [rejectionReason, setRejectionReason] = useState("");
@@ -51,6 +65,14 @@ export default function Moderation() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [showRejectForm, setShowRejectForm] = useState(false);
+
+  // User report state
+  const [reports, setReports] = useState([]);
+  const [reportsLoading, setReportsLoading] = useState(false);
+  const [reportReviewingId, setReportReviewingId] = useState(null);
+  const [reportNotes, setReportNotes] = useState({});
+  const [reportError, setReportError] = useState("");
+  const [reportNotice, setReportNotice] = useState("");
 
   const loadHistory = useCallback(async (postId) => {
     try {
@@ -68,11 +90,31 @@ export default function Moderation() {
             : []
       );
     } catch {
-      // History is supplementary. A history failure should not
-      // prevent the moderator from reviewing the article.
+      // History is supplementary. Keep the review workflow usable.
       setHistory([]);
     }
   }, []);
+
+  const loadPendingReports = useCallback(async () => {
+    setReportsLoading(true);
+    setReportError("");
+
+    try {
+      const response = await api.get("/reports/moderation/pending");
+      const data = response.data?.data;
+
+      setReports(Array.isArray(data) ? data : []);
+    } catch (requestError) {
+      if (requestError.response?.status === 401) {
+        navigate("/login", { replace: true });
+        return;
+      }
+
+      setReportError(getErrorMessage(requestError));
+    } finally {
+      setReportsLoading(false);
+    }
+  }, [navigate]);
 
   const claimNextPost = useCallback(async () => {
     if (loading || actionLoading) return;
@@ -96,7 +138,7 @@ export default function Moderation() {
       if (
         !claimedPost ||
         typeof claimedPost !== "object" ||
-        !getPostId(claimedPost)
+        !getId(claimedPost)
       ) {
         setNotice(
           response.data?.message ||
@@ -106,7 +148,7 @@ export default function Moderation() {
       }
 
       setPost(claimedPost);
-      await loadHistory(getPostId(claimedPost));
+      await loadHistory(getId(claimedPost));
     } catch (requestError) {
       if (requestError.response?.status === 401) {
         navigate("/login", { replace: true });
@@ -121,12 +163,15 @@ export default function Moderation() {
 
   useEffect(() => {
     claimNextPost();
+    loadPendingReports();
+    // Initial page load only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleApprove = async () => {
     if (!post || actionLoading) return;
 
-    const postId = getPostId(post);
+    const postId = getId(post);
 
     setActionLoading(true);
     setError("");
@@ -177,7 +222,7 @@ export default function Moderation() {
 
     try {
       const response = await api.post(
-        `/moderation/posts/${getPostId(post)}/reject`,
+        `/moderation/posts/${getId(post)}/reject`,
         { reason }
       );
 
@@ -197,6 +242,51 @@ export default function Moderation() {
       setError(getErrorMessage(requestError));
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleReportReview = async (reportId, status) => {
+    if (!reportId || reportReviewingId) return;
+
+    const note = (reportNotes[reportId] || "").trim();
+
+    if (note.length > 1000) {
+      setReportError("The review note cannot exceed 1000 characters.");
+      return;
+    }
+
+    setReportReviewingId(reportId);
+    setReportError("");
+    setReportNotice("");
+
+    try {
+      const response = await api.patch(
+        `/reports/${reportId}/review`,
+        { status, note }
+      );
+
+      setReports((previous) =>
+        previous.filter((report) => getId(report) !== reportId)
+      );
+
+      setReportNotes((previous) => {
+        const next = { ...previous };
+        delete next[reportId];
+        return next;
+      });
+
+      setReportNotice(
+        response.data?.message || "Report reviewed successfully."
+      );
+    } catch (requestError) {
+      if (requestError.response?.status === 401) {
+        navigate("/login", { replace: true });
+        return;
+      }
+
+      setReportError(getErrorMessage(requestError));
+    } finally {
+      setReportReviewingId(null);
     }
   };
 
@@ -229,8 +319,8 @@ export default function Moderation() {
             </span>
             <h1>Content moderation</h1>
             <p>
-              Review submissions carefully and help keep the
-              BlogForge community useful, respectful, and trustworthy.
+              Review submissions and community reports to keep
+              BlogForge useful, respectful, and trustworthy.
             </p>
           </div>
 
@@ -258,6 +348,7 @@ export default function Moderation() {
           </div>
         )}
 
+        {/* POST SUBMISSION REVIEW */}
         <div className="moderation-workspace">
           <section className="moderation-review-card">
             <div className="moderation-card-heading">
@@ -281,8 +372,7 @@ export default function Moderation() {
               <>
                 <div className="moderation-post-meta">
                   <span className="moderation-tag">
-                    {(post.status || "UNDER_REVIEW")
-                      .replaceAll("_", " ")}
+                    {(post.status || "UNDER_REVIEW").replaceAll("_", " ")}
                   </span>
                   <span>{formatDate(post.createdAt)}</span>
                 </div>
@@ -296,9 +386,7 @@ export default function Moderation() {
                 </p>
 
                 {post.excerpt && (
-                  <p className="moderation-excerpt">
-                    {post.excerpt}
-                  </p>
+                  <p className="moderation-excerpt">{post.excerpt}</p>
                 )}
 
                 <article className="moderation-article">
@@ -327,9 +415,7 @@ export default function Moderation() {
                       onClick={handleApprove}
                       disabled={actionLoading}
                     >
-                      {actionLoading
-                        ? "Processing..."
-                        : "Approve post"}
+                      {actionLoading ? "Processing..." : "Approve post"}
                     </button>
 
                     <button
@@ -425,9 +511,7 @@ export default function Moderation() {
                   <span>01</span>
                   <div>
                     <strong>Originality</strong>
-                    <p>
-                      Look for copied content or misleading attribution.
-                    </p>
+                    <p>Look for copied content or misleading attribution.</p>
                   </div>
                 </li>
 
@@ -435,9 +519,7 @@ export default function Moderation() {
                   <span>02</span>
                   <div>
                     <strong>Community safety</strong>
-                    <p>
-                      Check for harassment, abuse, or harmful material.
-                    </p>
+                    <p>Check for harassment, abuse, or harmful material.</p>
                   </div>
                 </li>
 
@@ -445,9 +527,7 @@ export default function Moderation() {
                   <span>03</span>
                   <div>
                     <strong>Content quality</strong>
-                    <p>
-                      Check relevance, clarity, and misleading claims.
-                    </p>
+                    <p>Check relevance, clarity, and misleading claims.</p>
                   </div>
                 </li>
               </ul>
@@ -474,11 +554,7 @@ export default function Moderation() {
                             "Review event"}
                         </strong>
 
-                        <p>
-                          {item.createdAt
-                            ? new Date(item.createdAt).toLocaleString()
-                            : "Time unavailable"}
-                        </p>
+                        <p>{formatDateTime(item.createdAt)}</p>
 
                         {item.reason && <p>{item.reason}</p>}
                       </div>
@@ -489,6 +565,176 @@ export default function Moderation() {
             </section>
           </aside>
         </div>
+
+        {/* USER REPORT REVIEW */}
+        <section
+          className="moderation-reports-section"
+          aria-labelledby="moderation-reports-heading"
+        >
+          <div className="moderation-reports-header">
+            <div>
+              <span className="moderation-eyebrow">COMMUNITY SAFETY</span>
+              <h2 id="moderation-reports-heading">
+                Pending user reports ({reports.length})
+              </h2>
+              <p>
+                Review reported posts and record a decision. Reviewing a
+                report does not automatically remove the reported post.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              className="moderation-button moderation-button-secondary"
+              onClick={loadPendingReports}
+              disabled={reportsLoading || Boolean(reportReviewingId)}
+            >
+              {reportsLoading ? "Refreshing..." : "Refresh reports"}
+            </button>
+          </div>
+
+          {reportError && (
+            <div
+              className="moderation-alert moderation-alert-error"
+              role="alert"
+            >
+              {reportError}
+            </div>
+          )}
+
+          {reportNotice && (
+            <div
+              className="moderation-alert moderation-alert-success"
+              role="status"
+            >
+              {reportNotice}
+            </div>
+          )}
+
+          {reportsLoading ? (
+            <div className="moderation-empty" aria-live="polite">
+              <span className="moderation-spinner" />
+              <h3>Loading reports</h3>
+              <p>Fetching reports that need review...</p>
+            </div>
+          ) : reports.length === 0 ? (
+            <div className="moderation-empty">
+              <span className="moderation-empty-icon">✓</span>
+              <h3>No pending reports</h3>
+              <p>
+                There are no reports waiting for review right now.
+              </p>
+            </div>
+          ) : (
+            <div className="moderation-report-list">
+              {reports.map((report) => {
+                const reportId = getId(report);
+                const reportedPost = report.post;
+                const reporter = report.reporter;
+
+                const postTitle =
+                  reportedPost?.title || "Reported post unavailable";
+
+                const slug = reportedPost?.slug;
+                const reporterName =
+                  reporter?.name ||
+                  reporter?.username ||
+                  "Community member";
+
+                const isReviewing = reportReviewingId === reportId;
+
+                return (
+                  <article
+                    className="moderation-report-card"
+                    key={reportId}
+                  >
+                    <div className="moderation-report-card-top">
+                      <span className="moderation-tag">PENDING</span>
+                      <time dateTime={report.createdAt || ""}>
+                        Reported {formatDate(report.createdAt)}
+                      </time>
+                    </div>
+
+                    <h3>{postTitle}</h3>
+
+                    <p className="moderation-report-reporter">
+                      Reported by <strong>{reporterName}</strong>
+                    </p>
+
+                    <div className="moderation-report-reason">
+                      <strong>Reason for report</strong>
+                      <p>{report.reason || "No reason provided."}</p>
+                    </div>
+
+                    {slug && (
+                      <p className="moderation-report-link">
+                        <Link to={`/posts/${encodeURIComponent(slug)}`}>
+                          View reported article
+                        </Link>
+                      </p>
+                    )}
+
+                    {!reportedPost && (
+                      <p className="moderation-report-reporter">
+                        The post details are unavailable. Review the report
+                        carefully before deciding.
+                      </p>
+                    )}
+
+                    <label
+                      className="moderation-report-note-label"
+                      htmlFor={`report-note-${reportId}`}
+                    >
+                      Review note (optional)
+                    </label>
+
+                    <textarea
+                      id={`report-note-${reportId}`}
+                      className="moderation-report-note"
+                      value={reportNotes[reportId] || ""}
+                      onChange={(event) =>
+                        setReportNotes((previous) => ({
+                          ...previous,
+                          [reportId]: event.target.value,
+                        }))
+                      }
+                      placeholder="Record why you took this decision..."
+                      rows={3}
+                      maxLength={1000}
+                      disabled={Boolean(reportReviewingId)}
+                    />
+
+                    <div className="moderation-actions">
+                      <button
+                        type="button"
+                        className="moderation-button moderation-button-approve"
+                        onClick={() =>
+                          handleReportReview(reportId, "ACTION_TAKEN")
+                        }
+                        disabled={Boolean(reportReviewingId)}
+                      >
+                        {isReviewing
+                          ? "Processing..."
+                          : "Action taken"}
+                      </button>
+
+                      <button
+                        type="button"
+                        className="moderation-button moderation-button-secondary"
+                        onClick={() =>
+                          handleReportReview(reportId, "DISMISSED")
+                        }
+                        disabled={Boolean(reportReviewingId)}
+                      >
+                        {isReviewing ? "Processing..." : "Dismiss report"}
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
       </section>
     </main>
   );

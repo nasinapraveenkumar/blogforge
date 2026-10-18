@@ -1,11 +1,12 @@
-
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import api from "../services/api";
 import "./CreatePost.css";
 
-export default function CreatePost() {
+function CreatePost() {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const isEditing = Boolean(id);
 
   const [form, setForm] = useState({
     title: "",
@@ -14,11 +15,77 @@ export default function CreatePost() {
     tags: "",
   });
 
+  const [loading, setLoading] = useState(isEditing);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const updateField = (event) => {
+  useEffect(() => {
+    if (!id) return;
+
+    let active = true;
+
+    async function loadPost() {
+      try {
+        setLoading(true);
+        setError("");
+
+        const response = await api.get("/posts/mine");
+        const result = response.data?.data;
+        const posts = Array.isArray(result)
+          ? result
+          : result?.posts || [];
+
+        const post = posts.find(
+          (item) => String(item._id || item.id) === String(id)
+        );
+
+        if (!post) {
+          throw new Error(
+            "Article not found in your posts. You may not own this article."
+          );
+        }
+
+        if (post.status !== "DRAFT") {
+          throw new Error("Only draft articles can be edited.");
+        }
+
+        if (active) {
+          setForm({
+            title: post.title || "",
+            excerpt: post.excerpt || "",
+            content: post.content || "",
+            tags: Array.isArray(post.tags)
+              ? post.tags
+                  .map((tag) =>
+                    typeof tag === "string" ? tag : tag.name || ""
+                  )
+                  .filter(Boolean)
+                  .join(", ")
+              : "",
+          });
+        }
+      } catch (err) {
+        if (active) {
+          setError(
+            err.response?.data?.message ||
+              err.message ||
+              "Failed to load article."
+          );
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    loadPost();
+
+    return () => {
+      active = false;
+    };
+  }, [id]);
+
+  function handleChange(event) {
     const { name, value } = event.target;
 
     setForm((previous) => ({
@@ -26,130 +93,117 @@ export default function CreatePost() {
       [name]: value,
     }));
 
-    if (error) setError("");
-    if (success) setSuccess("");
-  };
-
-  const submitPost = async (event, submitForReview = false) => {
-    event.preventDefault();
-
-    if (saving) return;
-
     setError("");
     setSuccess("");
+  }
 
-    const title = form.title.trim();
-    const content = form.content.trim();
-    const excerpt = form.excerpt.trim();
+  function getPayload() {
+    return {
+      title: form.title.trim(),
+      excerpt: form.excerpt.trim(),
+      content: form.content.trim(),
+      tags: form.tags
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean),
+    };
+  }
 
-    if (title.length < 5) {
-      setError("Your title must contain at least 5 characters.");
-      return;
+  function validateForm() {
+    if (!form.title.trim() || !form.content.trim()) {
+      setError("Please enter an article title and content.");
+      return false;
     }
 
-    if (title.length > 150) {
-      setError("Your title cannot exceed 150 characters.");
-      return;
-    }
+    return true;
+  }
 
-    if (content.length < 50) {
-      setError("Your article must contain at least 50 characters.");
-      return;
-    }
+  async function handleSaveDraft(event) {
+    event.preventDefault();
 
-    if (excerpt.length > 300) {
-      setError("Your introduction cannot exceed 300 characters.");
-      return;
-    }
-
-    const tags = [
-      ...new Set(
-        form.tags
-          .split(",")
-          .map((tag) => tag.trim().toLowerCase())
-          .filter(Boolean)
-      ),
-    ];
-
-    if (tags.length > 10) {
-      setError("You can add a maximum of 10 tags.");
-      return;
-    }
-
-    if (tags.some((tag) => tag.length > 30)) {
-      setError("Each tag must contain at most 30 characters.");
-      return;
-    }
-
-    setSaving(true);
+    if (!validateForm()) return;
 
     try {
-      const payload = {
-        title,
-        content,
-        excerpt,
-        tags,
-      };
+      setSaving(true);
+      setError("");
+      setSuccess("");
 
-      // Create the post using the existing backend endpoint.
-      const response = await api.post("/posts", payload);
-      const post = response.data?.data?.post ?? response.data?.data;
-      const postId = post?._id || post?.id;
-
-      if (!postId) {
-        setSuccess("Post saved. Check My Posts for its current status.");
-        return;
-      }
-
-      if (submitForReview) {
-        try {
-          // Submit the saved draft for moderator review.
-          await api.patch(`/posts/${postId}/submit`);
-
-          setSuccess("Your post has been submitted for review!");
-        } catch (submitError) {
-          const message = submitError.response?.data?.message;
-
-          setError(
-            `Your post was saved, but submission failed. ${
-              message || "Check My Posts before trying again."
-            }`
-          );
-          return;
-        }
+      if (isEditing) {
+        await api.patch(`/posts/${id}`, getPayload());
       } else {
-        setSuccess("Draft saved successfully!");
+        const response = await api.post("/posts", {
+          ...getPayload(),
+          status: "DRAFT",
+        });
+
+        const result = response.data?.data;
+        const post = result?.post ?? result;
+        const postId = post?._id || post?.id;
+
+        if (!postId) {
+          throw new Error("The server did not return the new article ID.");
+        }
+
+        setSuccess("Draft saved successfully.");
+        navigate(`/edit-post/${postId}`, { replace: true });
+        return;
       }
 
-      navigate("/my-posts", { state: { message: success } });
+      setSuccess("Draft saved successfully.");
     } catch (err) {
-      const status = err.response?.status;
-
-      if (status === 401) {
-        navigate("/login");
-        return;
-      }
-
-      if (status === 400 || status === 422) {
-        setError(
-          err.response?.data?.message ||
-            "Please check your title, article content, and tags."
-        );
-        return;
-      }
-
       setError(
         err.response?.data?.message ||
-          "Unable to save your post. Check that the backend is running."
+          "Failed to save your draft. Please try again."
       );
     } finally {
       setSaving(false);
     }
-  };
+  }
 
-  const wordCount = form.content.trim()
-    ? form.content.trim().split(/\s+/).length
-    : 0;
+  async function handleSubmitForReview() {
+    if (!validateForm()) return;
+
+    try {
+      setSaving(true);
+      setError("");
+      setSuccess("");
+
+      if (isEditing) {
+        // Save the latest changes before submitting the existing draft.
+        await api.patch(`/posts/${id}`, getPayload());
+        await api.patch(`/posts/${id}/submit`);
+      } else {
+        // Create the post directly for moderation. No draft step required.
+        await api.post("/posts", {
+          ...getPayload(),
+          status: "PENDING",
+        });
+      }
+
+      setSuccess("Your article has been submitted for moderation.");
+
+      setTimeout(() => {
+        navigate("/my-posts");
+      }, 900);
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+          "Failed to submit your article for review."
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <main className="create-post-page">
+        <div className="create-post-shell">
+          <p>Loading your article...</p>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="create-post-page">
@@ -158,101 +212,71 @@ export default function CreatePost() {
           <button
             type="button"
             className="create-post-back"
-            onClick={() => navigate("/dashboard")}
-            disabled={saving}
+            onClick={() => navigate("/my-posts")}
           >
-            ← Dashboard
+            &larr; Back to my posts
           </button>
 
-          <span className="create-post-eyebrow">
-            BLOGFORGE / EDITOR
-          </span>
+          <span className="create-post-eyebrow">BLOGFORGE EDITOR</span>
 
           <h1>
-            Create something <span>worth reading.</span>
+            {isEditing ? (
+              <>
+                Refine your <span>story.</span>
+              </>
+            ) : (
+              <>
+                Create something <span>meaningful.</span>
+              </>
+            )}
           </h1>
 
           <p>
-            Turn your ideas into a post. Save a draft or send it to
-            moderation when you are ready.
+            Every great article starts with an idea. Write your story,
+            save it for later, or submit it directly for moderation.
           </p>
         </header>
 
-        <form
-          className="create-post-form glass-panel"
-          onSubmit={(event) => submitPost(event, false)}
-        >
-          {error && (
-            <div
-              className="create-post-message error-message"
-              role="alert"
-            >
-              {error}
-            </div>
-          )}
+        {error && (
+          <div className="create-post-message error-message" role="alert">
+            {error}
+          </div>
+        )}
 
-          {success && (
-            <div
-              className="create-post-message success-message"
-              role="status"
-            >
-              {success}
-            </div>
-          )}
+        {success && (
+          <div className="create-post-message success-message" role="status">
+            {success}
+          </div>
+        )}
 
+        <form className="create-post-form" onSubmit={handleSaveDraft}>
           <div className="create-post-field">
-            <label htmlFor="title">Post title</label>
+            <label htmlFor="title">Article title</label>
             <input
               id="title"
               name="title"
+              type="text"
               value={form.title}
-              onChange={updateField}
-              placeholder="Give your idea a strong headline"
-              minLength={5}
-              maxLength={150}
+              onChange={handleChange}
+              placeholder="Give your story a compelling title"
+              maxLength={200}
               required
-              disabled={saving}
             />
-            <span className="create-post-hint">
-              {form.title.trim().length}/150 characters
-            </span>
           </div>
 
           <div className="create-post-field">
-            <label htmlFor="excerpt">Short introduction</label>
+            <label htmlFor="excerpt">Short description</label>
             <textarea
               id="excerpt"
               name="excerpt"
               value={form.excerpt}
-              onChange={updateField}
-              placeholder="What will readers learn from this post?"
+              onChange={handleChange}
+              placeholder="What will readers discover in this article?"
               rows={3}
-              maxLength={300}
-              disabled={saving}
+              maxLength={500}
             />
             <span className="create-post-hint">
-              {form.excerpt.length}/300 characters
-            </span>
-          </div>
-
-          <div className="create-post-field">
-            <label htmlFor="content">Your story</label>
-            <textarea
-              id="content"
-              name="content"
-              value={form.content}
-              onChange={updateField}
-              placeholder="Start writing your post here..."
-              rows={15}
-              required
-              disabled={saving}
-              aria-describedby="content-hint"
-            />
-            <span
-              id="content-hint"
-              className="create-post-hint"
-            >
-              {wordCount} words · {form.content.trim().length}/50 minimum characters
+              Give readers a quick preview of your article.
             </span>
           </div>
 
@@ -261,43 +285,62 @@ export default function CreatePost() {
             <input
               id="tags"
               name="tags"
+              type="text"
               value={form.tags}
-              onChange={updateField}
-              placeholder="JavaScript, Web Development, Career"
-              disabled={saving}
+              onChange={handleChange}
+              placeholder="javascript, react, web development"
             />
             <span className="create-post-hint">
-              Separate tags with commas. Maximum 10 tags.
+              Separate each tag with a comma.
             </span>
           </div>
 
-          <div className="create-post-footer">
-            <span className="create-post-footer-note">
-              Your work belongs to you. Review it before publishing.
+          <div className="create-post-field">
+            <label htmlFor="content">Article content</label>
+            <textarea
+              id="content"
+              name="content"
+              value={form.content}
+              onChange={handleChange}
+              placeholder="Start writing your story here..."
+              rows={14}
+              required
+            />
+            <span className="create-post-hint">
+              Write clearly, share what you learned, and help other developers grow.
             </span>
+          </div>
+
+          <footer className="create-post-footer">
+            <p className="create-post-footer-note">
+              Save your work privately to edit it later, or submit it directly
+              for moderation. Saving a draft is optional.
+            </p>
 
             <div className="create-post-actions">
               <button
-                type="button"
+                type="submit"
                 className="create-post-secondary"
                 disabled={saving}
-                onClick={(event) => submitPost(event, false)}
               >
-                {saving ? "Saving..." : "Save draft"}
+                {saving ? "Please wait..." : "Save draft"}
               </button>
 
               <button
                 type="button"
                 className="create-post-primary"
+                onClick={handleSubmitForReview}
                 disabled={saving}
-                onClick={(event) => submitPost(event, true)}
+                title="Submit your post directly for moderation"
               >
-                {saving ? "Processing..." : "Submit for review →"}
+                {saving ? "Please wait..." : "Submit for review"}
               </button>
             </div>
-          </div>
+          </footer>
         </form>
       </div>
     </main>
   );
 }
+
+export default CreatePost;

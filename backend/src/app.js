@@ -11,6 +11,8 @@ import commentRoutes from "./modules/comment/comment.routes.js";
 import likeRoutes from "./modules/like/like.routes.js";
 import bookmarkRoutes from "./modules/bookmark/bookmark.routes.js";
 import reportRoutes from "./modules/report/report.routes.js";
+import adminRoutes from "./modules/admin/admin.routes.js";
+
 
 const app = express();
 
@@ -42,5 +44,7 @@ app.use("/api/comments", commentRoutes);
 app.use("/api/likes", likeRoutes);
 app.use("/api/bookmarks", bookmarkRoutes);
 app.use("/api/reports", reportRoutes);
+app.use("/api/admin", adminRoutes);
+
 
 export default app;

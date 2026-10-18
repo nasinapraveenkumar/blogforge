@@ -1,11 +1,12 @@
 
 import jwt from "jsonwebtoken";
+import User from "../modules/auth/auth.model.js";
 
-export const authenticate = (req, res, next) => {
+export const authenticate = async (req, res, next) => {
   try {
     const cookieToken = req.cookies?.token;
-
     const authHeader = req.headers.authorization;
+
     const bearerToken = authHeader?.startsWith("Bearer ")
       ? authHeader.slice(7)
       : null;
@@ -20,7 +21,7 @@ export const authenticate = (req, res, next) => {
     }
 
     if (!process.env.JWT_SECRET) {
-      console.error("JWT_SECRET is missing from backend environment.");
+      console.error("JWT_SECRET is missing.");
       return res.status(500).json({
         success: false,
         message: "Authentication configuration error.",
@@ -28,8 +29,8 @@ export const authenticate = (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    const userId = decoded.id || decoded.userId || decoded._id || decoded.sub;
+    const userId =
+      decoded.id || decoded.userId || decoded._id || decoded.sub;
 
     if (!userId) {
       return res.status(401).json({
@@ -38,29 +39,43 @@ export const authenticate = (req, res, next) => {
       });
     }
 
-    req.user = {
-      ...decoded,
-      id: userId,
-      _id: decoded._id || userId,
-      role: decoded.role,
-    };
+    const user = await User.findById(userId).select(
+      "_id name email role isActive"
+    );
 
-    next();
-  } catch (error) {
-    if (error.name === "TokenExpiredError") {
+    if (!user) {
       return res.status(401).json({
         success: false,
-        message: "Your session has expired. Please log in again.",
+        message: "User account not found. Please log in again.",
       });
     }
 
+    if (!user.isActive) {
+      return res.status(403).json({
+        success: false,
+        message: "Your account has been deactivated.",
+      });
+    }
+
+    req.user = {
+      id: user._id.toString(),
+      _id: user._id.toString(),
+      userId: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    };
+
+    return next();
+  } catch (error) {
     if (
-      error.name === "JsonWebTokenError" ||
-      error.name === "NotBeforeError"
+      ["TokenExpiredError", "JsonWebTokenError", "NotBeforeError"].includes(
+        error.name
+      )
     ) {
       return res.status(401).json({
         success: false,
-        message: "Invalid authentication token. Please log in again.",
+        message: "Invalid or expired token. Please log in again.",
       });
     }
 
@@ -71,26 +86,6 @@ export const authenticate = (req, res, next) => {
       message: "Authentication failed.",
     });
   }
-};
-
-export const authorize = (...allowedRoles) => {
-  return (req, res, next) => {
-    if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        message: "Authentication required.",
-      });
-    }
-
-    if (!allowedRoles.includes(req.user.role)) {
-      return res.status(403).json({
-        success: false,
-        message: "You do not have permission to access this resource.",
-      });
-    }
-
-    next();
-  };
 };
 
 export default authenticate;

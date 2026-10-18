@@ -1,316 +1,408 @@
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import "./MyPosts.css";
 
-const filters = [
-  "All",
-  "Draft",
-  "Submitted",
-  "Under Review",
-  "Published",
-  "Rejected",
-];
+const STATUS_META = {
+  DRAFT: { label: "Draft", className: "draft" },
+  SUBMITTED: { label: "Submitted", className: "submitted" },
+  UNDER_REVIEW: { label: "In review", className: "review" },
+  APPROVED: { label: "Approved", className: "approved" },
+  PUBLISHED: { label: "Published", className: "published" },
+  REJECTED: { label: "Rejected", className: "rejected" },
+  ARCHIVED: { label: "Archived", className: "archived" },
+  REMOVED: { label: "Removed", className: "removed" },
+};
 
-function formatStatus(status = "UNKNOWN") {
-  return status
-    .toLowerCase()
-    .replaceAll("_", " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
+function normalizePosts(response) {
+  const data = response?.data?.data ?? response?.data;
+
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.posts)) return data.posts;
+  if (Array.isArray(data?.items)) return data.items;
+
+  return [];
 }
 
-function formatDate(date) {
-  if (!date) return "—";
+function getPostId(post) {
+  return post?._id || post?.id;
+}
 
-  const parsedDate = new Date(date);
+function getRejectionReason(post) {
+  return (
+    post?.moderation?.rejectionReason ||
+    post?.rejectionReason ||
+    post?.moderationReason ||
+    post?.reviewNote ||
+    ""
+  );
+}
 
-  if (Number.isNaN(parsedDate.getTime())) return "—";
+function formatDate(value) {
+  if (!value) return "Date unavailable";
 
-  return parsedDate.toLocaleDateString("en-IN", {
-    day: "2-digit",
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "Date unavailable";
+
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "numeric",
     month: "short",
     year: "numeric",
-  });
-}
-
-function getStatusClass(status = "unknown") {
-  return status.toLowerCase().replaceAll("_", "-");
+  }).format(date);
 }
 
 export default function MyPosts() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [posts, setPosts] = useState([]);
-  const [stats, setStats] = useState({
-    totalPosts: 0,
-    published: 0,
-    pending: 0,
-    drafts: 0,
-    rejected: 0,
-  });
-
-  const [search, setSearch] = useState("");
-  const [activeFilter, setActiveFilter] = useState("All");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState(location.state?.message || "");
+  const [filter, setFilter] = useState("ALL");
+  const [refreshing, setRefreshing] = useState(false);
+  const [actionId, setActionId] = useState("");
 
-  const loadPosts = useCallback(async () => {
-    setLoading(true);
-    setError("");
-
-    try {
-      const response = await api.get("/posts/mine");
-      const result = response.data?.data;
-
-      if (!result || !Array.isArray(result.posts)) {
-        throw new Error("Unexpected response from the posts API.");
+  const loadPosts = useCallback(
+    async (isRefresh = false) => {
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
       }
 
-      setPosts(result.posts);
-      setStats({
-        totalPosts: result.stats?.totalPosts ?? result.posts.length,
-        published: result.stats?.published ?? 0,
-        pending: result.stats?.pending ?? 0,
-        drafts: result.stats?.drafts ?? 0,
-        rejected: result.stats?.rejected ?? 0,
-      });
-    } catch (err) {
-      if (err.response?.status === 401) {
-        navigate("/login", { replace: true });
-        return;
-      }
+      setError("");
 
-      setError(
-        err.response?.data?.message ||
-          err.message ||
-          "Unable to load your posts."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [navigate]);
+      try {
+        const response = await api.get("/posts/mine");
+        setPosts(normalizePosts(response));
+      } catch (err) {
+        if (err.response?.status === 401) {
+          navigate("/login");
+          return;
+        }
+
+        setError(
+          err.response?.data?.message ||
+            "Unable to load your posts. Please try again."
+        );
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [navigate]
+  );
 
   useEffect(() => {
     loadPosts();
   }, [loadPosts]);
 
-  const visiblePosts = useMemo(() => {
-    const query = search.trim().toLowerCase();
+  const submitForReview = async (post) => {
+    const postId = getPostId(post);
 
-    return posts.filter((post) => {
-      const title = (post.title || "").toLowerCase();
-      const matchesSearch = title.includes(query);
-      const status = (post.status || "").toUpperCase();
+    if (!postId || actionId) return;
 
-      const matchesFilter =
-        activeFilter === "All" ||
-        (activeFilter === "Draft" && status === "DRAFT") ||
-        (activeFilter === "Submitted" && status === "SUBMITTED") ||
-        (activeFilter === "Under Review" &&
-          status === "UNDER_REVIEW") ||
-        (activeFilter === "Published" && status === "PUBLISHED") ||
-        (activeFilter === "Rejected" && status === "REJECTED");
+    setActionId(postId);
+    setError("");
+    setNotice("");
 
-      return matchesSearch && matchesFilter;
-    });
-  }, [posts, search, activeFilter]);
+    try {
+      await api.patch(`/posts/${postId}/submit`);
 
-  const statCards = [
-    { label: "Total posts", value: stats.totalPosts, symbol: "▤" },
-    { label: "Published", value: stats.published, symbol: "✓" },
-    { label: "Pending review", value: stats.pending, symbol: "◷" },
-    { label: "Drafts", value: stats.drafts, symbol: "✎" },
-  ];
+      setNotice(`"${post.title}" was submitted for moderation.`);
+      await loadPosts(true);
+    } catch (err) {
+      if (err.response?.status === 401) {
+        navigate("/login");
+        return;
+      }
+
+      setError(
+        err.response?.data?.message ||
+          "Unable to submit this post. Check its status and try again."
+      );
+    } finally {
+      setActionId("");
+    }
+  };
+
+  const visiblePosts = posts.filter((post) => {
+    if (filter === "ALL") return true;
+
+    return String(post.status || "").toUpperCase() === filter;
+  });
+
+  const counts = posts.reduce((result, post) => {
+    const status = String(post.status || "").toUpperCase();
+    result[status] = (result[status] || 0) + 1;
+    return result;
+  }, {});
 
   return (
     <main className="my-posts-page">
-      <header className="my-posts-header">
-        <div>
-          <Link to="/dashboard" className="my-posts-back">
-            ← Dashboard
+      <div className="my-posts-shell">
+        <header className="my-posts-header">
+          <div>
+            <span className="my-posts-eyebrow">
+              BLOGFORGE / YOUR WORKSPACE
+            </span>
+
+            <h1>
+              My <span>posts.</span>
+            </h1>
+
+            <p>
+              Manage your writing, follow moderation decisions, and
+              get your next article ready for readers.
+            </p>
+          </div>
+
+          <Link className="my-posts-create" to="/create-post">
+            + Write a post
           </Link>
+        </header>
 
-          <p className="my-posts-eyebrow">CONTENT MANAGEMENT</p>
-          <h1>My Posts</h1>
-          <p className="my-posts-description">
-            Manage your articles, track moderation, and keep writing.
-          </p>
-        </div>
+        {notice && (
+          <div className="my-posts-notice" role="status">
+            <span>{notice}</span>
 
-        <Link to="/write" className="my-posts-create">
-          <span>＋</span> Create a post
-        </Link>
-      </header>
-
-      <section className="my-posts-stats" aria-label="Post statistics">
-        {statCards.map((stat) => (
-          <article className="my-posts-stat" key={stat.label}>
-            <span className="my-posts-stat-icon">{stat.symbol}</span>
-            <div>
-              <strong>{loading ? "—" : stat.value}</strong>
-              <span>{stat.label}</span>
-            </div>
-          </article>
-        ))}
-      </section>
-
-      <section className="my-posts-panel">
-        <div className="my-posts-toolbar">
-          <label className="my-posts-search">
-            <span>⌕</span>
-            <input
-              type="search"
-              placeholder="Search by post title..."
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              aria-label="Search posts by title"
-            />
-          </label>
-
-          <span className="my-posts-count">
-            {loading ? "Loading..." : `${visiblePosts.length} posts`}
-          </span>
-        </div>
-
-        <div
-          className="my-posts-filters"
-          aria-label="Filter posts by status"
-        >
-          {filters.map((filter) => (
             <button
               type="button"
-              key={filter}
-              className={`my-posts-filter ${
-                activeFilter === filter ? "active" : ""
-              }`}
-              onClick={() => setActiveFilter(filter)}
-              aria-pressed={activeFilter === filter}
+              aria-label="Dismiss message"
+              onClick={() => setNotice("")}
             >
-              {filter}
+              ×
             </button>
-          ))}
-        </div>
+          </div>
+        )}
 
         {error && (
           <div className="my-posts-error" role="alert">
-            <strong>Unable to load posts</strong>
-            <p>{error}</p>
+            <span>{error}</span>
+
             <button
               type="button"
-              onClick={loadPosts}
-              disabled={loading}
+              onClick={() => loadPosts(true)}
+              disabled={refreshing}
             >
-              {loading ? "Retrying..." : "Try again"}
+              Retry
             </button>
           </div>
         )}
 
-        {loading ? (
-          <div className="my-posts-empty" aria-live="polite">
-            <span className="my-posts-empty-icon">◷</span>
-            <h2>Loading your posts</h2>
-            <p>Fetching your latest articles from BlogForge.</p>
+        <section className="my-posts-stats" aria-label="Post statistics">
+          <div className="my-posts-stat">
+            <span>Total posts</span>
+            <strong>{posts.length}</strong>
           </div>
-        ) : !error && visiblePosts.length === 0 ? (
-          <div className="my-posts-empty">
-            <span className="my-posts-empty-icon">▤</span>
+
+          <div className="my-posts-stat">
+            <span>Drafts</span>
+            <strong>{counts.DRAFT || 0}</strong>
+          </div>
+
+          <div className="my-posts-stat">
+            <span>In review</span>
+            <strong>
+              {(counts.SUBMITTED || 0) + (counts.UNDER_REVIEW || 0)}
+            </strong>
+          </div>
+
+          <div className="my-posts-stat">
+            <span>Published</span>
+            <strong>{counts.PUBLISHED || 0}</strong>
+          </div>
+        </section>
+
+        <div className="my-posts-toolbar">
+          <div>
+            <h2>Your writing</h2>
+            <p>{visiblePosts.length} posts shown</p>
+          </div>
+
+          <div className="my-posts-controls">
+            <label
+              className="my-posts-filter-label"
+              htmlFor="post-filter"
+            >
+              Filter
+            </label>
+
+            <select
+              id="post-filter"
+              value={filter}
+              onChange={(event) => setFilter(event.target.value)}
+            >
+              <option value="ALL">All posts</option>
+              <option value="DRAFT">Drafts</option>
+              <option value="SUBMITTED">Submitted</option>
+              <option value="UNDER_REVIEW">In review</option>
+              <option value="PUBLISHED">Published</option>
+              <option value="REJECTED">Rejected</option>
+              <option value="ARCHIVED">Archived</option>
+              <option value="REMOVED">Removed</option>
+            </select>
+
+            <button
+              type="button"
+              className="my-posts-refresh"
+              onClick={() => loadPosts(true)}
+              disabled={refreshing || loading}
+            >
+              {refreshing ? "Refreshing..." : "Refresh"}
+            </button>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="my-posts-state">
+            <div className="my-posts-loader" />
+            <p>Loading your writing...</p>
+          </div>
+        ) : visiblePosts.length === 0 ? (
+          <section className="my-posts-empty">
+            <span className="my-posts-empty-icon">✎</span>
+
             <h2>
-              {posts.length === 0
-                ? "Your writing journey starts here"
-                : "No matching posts"}
+              {filter === "ALL"
+                ? "Your story starts here."
+                : "No posts in this category."}
             </h2>
+
             <p>
-              {posts.length === 0
-                ? "Create your first article and share your knowledge."
-                : "Try another search term or status filter."}
+              {filter === "ALL"
+                ? "Create your first article, save it as a draft, and submit it when you are ready."
+                : "Try another filter or create a new post."}
             </p>
 
-            {posts.length === 0 && (
-              <Link to="/write" className="my-posts-create">
-                ＋ Create your first post
+            {filter === "ALL" && (
+              <Link to="/create-post" className="my-posts-create">
+                Create your first post
               </Link>
             )}
-          </div>
+          </section>
         ) : (
-          <div className="my-posts-table-wrap">
-            <table className="my-posts-table">
-              <thead>
-                <tr>
-                  <th scope="col">Article</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Created</th>
-                  <th scope="col">Action</th>
-                </tr>
-              </thead>
+          <section className="my-posts-list">
+            {visiblePosts.map((post) => {
+              const postId = getPostId(post);
+              const status = String(post.status || "DRAFT").toUpperCase();
 
-              <tbody>
-                {visiblePosts.map((post) => (
-                  <tr key={post._id}>
-                    <td>
-                      <div className="my-posts-article">
-                        <span className="my-posts-thumbnail">
-                          {(post.title || "BP")
-                            .slice(0, 2)
-                            .toUpperCase()}
-                        </span>
+              const statusMeta = STATUS_META[status] || {
+                label: status.replaceAll("_", " "),
+                className: "unknown",
+              };
 
-                        <div>
-                          <strong>{post.title || "Untitled post"}</strong>
-                          <span>
-                            {post.slug
-                              ? `/${post.slug}`
-                              : "BlogForge article"}
-                          </span>
-                        </div>
-                      </div>
-                    </td>
+              const rejectionReason = getRejectionReason(post);
+              const canEdit = ["DRAFT", "REJECTED"].includes(status);
+              const canSubmit = ["DRAFT", "REJECTED"].includes(status);
+              const tags = Array.isArray(post.tags) ? post.tags : [];
 
-                    <td>
+              return (
+                <article className="my-post-card" key={postId}>
+                  <div className="my-post-card-main">
+                    <div className="my-post-card-top">
                       <span
-                        className={`my-posts-status status-${getStatusClass(
-                          post.status
-                        )}`}
+                        className={`my-post-status ${statusMeta.className}`}
                       >
-                        <span aria-hidden="true" />
-                        {formatStatus(post.status)}
+                        {statusMeta.label}
                       </span>
-                    </td>
 
-                    <td className="my-posts-date">
-                      {formatDate(post.createdAt)}
-                    </td>
+                      <span className="my-post-date">
+                        Updated{" "}
+                        {formatDate(post.updatedAt || post.createdAt)}
+                      </span>
+                    </div>
 
-                    <td>
-                      {post.status === "PUBLISHED" && post.slug ? (
-                        <Link
-                          className="my-posts-action"
-                          to={`/posts/${encodeURIComponent(post.slug)}`}
-                        >
-                          View article
-                        </Link>
-                      ) : (
-                        <span className="my-posts-action-muted">
-                          {post.status === "REJECTED"
-                            ? "Needs revision"
-                            : post.status === "DRAFT"
-                              ? "Draft saved"
-                              : "In progress"}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    <h3>{post.title || "Untitled post"}</h3>
+
+                    <p className="my-post-excerpt">
+                      {post.excerpt ||
+                        (post.content
+                          ? `${post.content.slice(0, 180)}${
+                              post.content.length > 180 ? "..." : ""
+                            }`
+                          : "No introduction added yet.")}
+                    </p>
+
+                    {tags.length > 0 && (
+                      <div className="my-post-tags">
+                        {tags.slice(0, 5).map((tag, index) => {
+                          const name =
+                            typeof tag === "string" ? tag : tag?.name;
+
+                          return name ? (
+                            <span key={`${name}-${index}`}>{name}</span>
+                          ) : null;
+                        })}
+                      </div>
+                    )}
+
+                    {status === "REJECTED" && rejectionReason && (
+                      <div className="my-post-feedback">
+                        <strong>Moderator feedback</strong>
+                        <p>{rejectionReason}</p>
+                      </div>
+                    )}
+
+                    {status === "REJECTED" && !rejectionReason && (
+                      <div className="my-post-feedback">
+                        <strong>Revision needed</strong>
+                        <p>
+                          This post was rejected. Review the moderator's
+                          feedback in the moderation history if available.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="my-post-card-actions">
+                    {status === "PUBLISHED" && post.slug && (
+                      <Link
+                        className="my-post-action secondary"
+                        to={`/posts/${encodeURIComponent(post.slug)}`}
+                      >
+                        Read post
+                      </Link>
+                    )}
+
+                    {canEdit && (
+                      <Link
+                        className="my-post-action secondary"
+                        to={`/edit-post/${postId}`}
+                      >
+                        Edit
+                      </Link>
+                    )}
+
+                    {canSubmit && (
+                      <button
+                        type="button"
+                        className="my-post-action primary"
+                        onClick={() => submitForReview(post)}
+                        disabled={Boolean(actionId)}
+                      >
+                        {actionId === postId
+                          ? "Submitting..."
+                          : status === "REJECTED"
+                            ? "Resubmit for review"
+                            : "Submit for review"}
+                      </button>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </section>
         )}
-      </section>
 
-      <footer className="my-posts-footer">
-        <span>BlogForge</span>
-        <span>Your ideas deserve to be shared.</span>
-      </footer>
+        <footer className="my-posts-footer">
+          <Link to="/dashboard">← Back to dashboard</Link>
+          <span>Write thoughtfully. Build in public.</span>
+        </footer>
+      </div>
     </main>
   );
 }
