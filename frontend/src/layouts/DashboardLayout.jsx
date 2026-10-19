@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import api from "../services/api";
@@ -16,28 +15,20 @@ const menuItems = [
   ["⚙", "Settings", "/settings"],
 ];
 
-function formatName(name) {
-  if (!name) return "Writer";
+function formatName(value) {
+  if (!value || typeof value !== "string") return "Writer";
 
-  return name
+  return value
     .trim()
     .split(/\s+/)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .map(
+      (part) =>
+        part.charAt(0).toUpperCase() + part.slice(1)
+    )
     .join(" ");
 }
 
-function getInitials(name) {
-  return (
-    name
-      ?.trim()
-      .split(/\s+/)
-      .slice(0, 2)
-      .map((part) => part.charAt(0).toUpperCase())
-      .join("") || "BF"
-  );
-}
-
-export default function DashboardLayout() {
+export default function DashboardLayout({ children }) {
   const navigate = useNavigate();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -84,6 +75,7 @@ export default function DashboardLayout() {
       navigate("/login", { replace: true });
     } catch (error) {
       console.error("Logout failed:", error);
+
       window.alert(
         error.response?.data?.message ||
           "Unable to log out. Please try again."
@@ -109,6 +101,8 @@ export default function DashboardLayout() {
     user?.image ||
     "";
 
+  const avatarLetter = displayName.charAt(0).toUpperCase();
+
   return (
     <div className="dashboard-shell">
       <aside
@@ -116,28 +110,23 @@ export default function DashboardLayout() {
           mobileMenuOpen ? "mobile-open" : ""
         }`}
       >
-        <button
-          className="mobile-sidebar-close"
-          type="button"
-          onClick={closeMenu}
-          aria-label="Close navigation"
-        >
-          ×
-        </button>
-
         <Link
           to="/dashboard"
           className="dashboard-brand"
           onClick={closeMenu}
         >
           <span className="dashboard-logo">◆</span>
+
           <span>
             BlogForge
             <small>Write. Share. Grow.</small>
           </span>
         </Link>
 
-        <nav className="dashboard-nav" aria-label="Dashboard navigation">
+        <nav
+          className="dashboard-nav"
+          aria-label="Dashboard navigation"
+        >
           {menuItems.map(([icon, label, path]) => (
             <NavLink
               key={label}
@@ -180,8 +169,8 @@ export default function DashboardLayout() {
         <button
           type="button"
           className="mobile-sidebar-backdrop"
-          onClick={closeMenu}
           aria-label="Close navigation menu"
+          onClick={closeMenu}
         />
       )}
 
@@ -190,52 +179,41 @@ export default function DashboardLayout() {
           <button
             type="button"
             className="mobile-menu-toggle"
-            onClick={() => setMobileMenuOpen(true)}
-            aria-label="Open navigation menu"
+            onClick={() => setMobileMenuOpen((open) => !open)}
+            aria-label={
+              mobileMenuOpen ? "Close navigation" : "Open navigation"
+            }
             aria-expanded={mobileMenuOpen}
           >
-            <span />
-            <span />
-            <span />
+            {mobileMenuOpen ? "✕" : "☰"}
           </button>
 
-          <div className="dashboard-topbar-title">
+          <div className="dashboard-topbar-heading">
             <span>YOUR WORKSPACE</span>
             <strong>BlogForge</strong>
           </div>
 
-          <div className="dashboard-topbar-actions">
+          <div className="topbar-profile">
             <Link
               to="/settings"
-              className="dashboard-profile-link"
+              className="topbar-profile-link"
               aria-label="Open profile settings"
-              title="Profile settings"
             >
-              <span className="dashboard-profile-avatar">
-                {avatar ? (
-                  <img
-                    src={avatar}
-                    alt=""
-                    onError={(event) => {
-                      event.currentTarget.style.display = "none";
-                    }}
-                  />
-                ) : null}
+              {avatar ? (
+                <img
+                  src={avatar}
+                  alt=""
+                  className="profile-avatar"
+                />
+              ) : (
+                <span className="profile-avatar">
+                  {avatarLetter}
+                </span>
+              )}
 
-                {!avatar && (
-                  <span>{getInitials(displayName)}</span>
-                )}
-
-                {avatar && (
-                  <span className="dashboard-profile-fallback">
-                    {getInitials(displayName)}
-                  </span>
-                )}
-              </span>
-
-              <span className="dashboard-profile-details">
-                <strong>{displayName}</strong>
-                <small>{formatName(user?.role || "Writer")}</small>
+              <span className="profile-copy">
+                <strong title={displayName}>{displayName}</strong>
+                <span>{user?.role || "Writer"}</span>
               </span>
             </Link>
 
@@ -244,6 +222,7 @@ export default function DashboardLayout() {
               className="dashboard-logout-button"
               onClick={handleLogout}
               disabled={loggingOut}
+              aria-label="Log out of BlogForge"
             >
               {loggingOut ? "Logging out..." : "Log out"}
             </button>
@@ -251,7 +230,7 @@ export default function DashboardLayout() {
         </header>
 
         <div className="dashboard-content">
-          <Outlet />
+          {children ?? <Outlet />}
         </div>
       </main>
     </div>

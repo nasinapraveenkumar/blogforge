@@ -13,9 +13,11 @@ function ProfileSettings() {
   const [loading, setLoading] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
+
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
+  // Load profile
   useEffect(() => {
     let cancelled = false;
 
@@ -41,7 +43,9 @@ function ProfileSettings() {
           );
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
 
@@ -52,12 +56,15 @@ function ProfileSettings() {
     };
   }, []);
 
+  // Save profile name
   async function handleProfileSave(event) {
     event.preventDefault();
     setError("");
     setMessage("");
 
-    if (name.trim().length < 2 || name.trim().length > 50) {
+    const cleanName = name.trim();
+
+    if (cleanName.length < 2 || cleanName.length > 50) {
       setError("Your name must be between 2 and 50 characters.");
       return;
     }
@@ -66,14 +73,20 @@ function ProfileSettings() {
       setSavingProfile(true);
 
       const response = await api.patch("/users/me", {
-        name: name.trim(),
+        name: cleanName,
       });
 
-      const updatedUser = response.data?.data;
+      const result = response.data?.data;
+      const updatedUser = result?.user || result?.data || result;
 
-      if (updatedUser) {
-        setUser(updatedUser);
-        setName(updatedUser.name || name.trim());
+      if (updatedUser && typeof updatedUser === "object") {
+        setUser((previous) => ({
+          ...previous,
+          ...updatedUser,
+        }));
+        setName(updatedUser.name || cleanName);
+      } else {
+        setName(cleanName);
       }
 
       setMessage("Your profile has been updated.");
@@ -87,6 +100,7 @@ function ProfileSettings() {
     }
   }
 
+  // Change password
   async function handlePasswordChange(event) {
     event.preventDefault();
     setError("");
@@ -94,6 +108,11 @@ function ProfileSettings() {
 
     if (newPassword.length < 8) {
       setError("Your new password must contain at least 8 characters.");
+      return;
+    }
+
+    if (newPassword.length > 128) {
+      setError("Your new password cannot exceed 128 characters.");
       return;
     }
 
@@ -111,7 +130,8 @@ function ProfileSettings() {
       });
 
       setMessage(
-        response.data?.message || "Password changed successfully."
+        response.data?.message ||
+          "Password changed successfully."
       );
 
       setCurrentPassword("");
@@ -136,6 +156,7 @@ function ProfileSettings() {
   }
 
   const displayName = user?.name || "BlogForge Member";
+
   const initials = displayName
     .trim()
     .split(/\s+/)
@@ -143,38 +164,33 @@ function ProfileSettings() {
     .map((part) => part[0]?.toUpperCase())
     .join("");
 
-  const photo =
-    user?.profilePhoto ||
-    user?.avatar ||
-    user?.avatarUrl ||
-    "";
-
   return (
     <main className="bf-profile-page">
       <header className="bf-profile-heading">
         <p className="bf-profile-eyebrow">YOUR WORKSPACE</p>
         <h1>Profile &amp; Settings</h1>
-        <p>Manage your personal information and account security.</p>
+        <p>
+          Manage your personal information and account security.
+        </p>
       </header>
 
       {(message || error) && (
         <div
           className={`bf-profile-notice ${
-            error ? "bf-profile-notice-error" : "bf-profile-notice-success"
+            error
+              ? "bf-profile-notice-error"
+              : "bf-profile-notice-success"
           }`}
-          role="status"
+          role={error ? "alert" : "status"}
         >
           {error || message}
         </div>
       )}
 
+      {/* Account identity: initials instead of profile photos */}
       <section className="bf-profile-card bf-profile-identity">
         <div className="bf-profile-avatar">
-          {photo ? (
-            <img src={photo} alt={`${displayName}'s profile`} />
-          ) : (
-            <span>{initials || "BF"}</span>
-          )}
+          <span>{initials || "BF"}</span>
         </div>
 
         <div className="bf-profile-identity-info">
@@ -186,6 +202,7 @@ function ProfileSettings() {
         </div>
       </section>
 
+      {/* Personal information */}
       <section className="bf-profile-section">
         <div className="bf-profile-section-heading">
           <div>
@@ -234,11 +251,14 @@ function ProfileSettings() {
         </form>
       </section>
 
+      {/* Change password */}
       <section className="bf-profile-section">
         <div className="bf-profile-section-heading">
           <div>
             <h2>Change password</h2>
-            <p>Verify your current password before choosing a new one.</p>
+            <p>
+              Verify your current password before choosing a new one.
+            </p>
           </div>
         </div>
 
@@ -251,7 +271,9 @@ function ProfileSettings() {
             <input
               type="password"
               value={currentPassword}
-              onChange={(event) => setCurrentPassword(event.target.value)}
+              onChange={(event) =>
+                setCurrentPassword(event.target.value)
+              }
               autoComplete="current-password"
               required
             />
@@ -262,7 +284,9 @@ function ProfileSettings() {
             <input
               type="password"
               value={newPassword}
-              onChange={(event) => setNewPassword(event.target.value)}
+              onChange={(event) =>
+                setNewPassword(event.target.value)
+              }
               minLength={8}
               maxLength={128}
               autoComplete="new-password"
@@ -276,7 +300,9 @@ function ProfileSettings() {
             <input
               type="password"
               value={confirmPassword}
-              onChange={(event) => setConfirmPassword(event.target.value)}
+              onChange={(event) =>
+                setConfirmPassword(event.target.value)
+              }
               minLength={8}
               maxLength={128}
               autoComplete="new-password"
@@ -290,27 +316,16 @@ function ProfileSettings() {
               className="bf-profile-button"
               disabled={savingPassword}
             >
-              {savingPassword ? "Updating..." : "Update password"}
+              {savingPassword
+                ? "Updating..."
+                : "Update password"}
             </button>
           </div>
         </form>
       </section>
 
-      <section className="bf-profile-section">
-        <div className="bf-profile-section-heading">
-          <div>
-            <h2>Profile photo</h2>
-            <p>Personalize your dashboard with your own photo.</p>
-          </div>
-        </div>
-
-        <div className="bf-profile-card bf-profile-photo-pending">
-          <p>
-            Photo upload is not connected yet. We'll enable it after
-            configuring persistent image storage.
-          </p>
-        </div>
-      </section>
+      {/* Profile photo upload intentionally disabled for now.
+          Upload implementation is preserved in Git history if needed. */}
     </main>
   );
 }

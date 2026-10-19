@@ -1631,3 +1631,60 @@
   font-size: 0.75rem;
   font-weight: 600;
 }
+
+/* Home page footer additions */
+.home-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 18px 24px;
+}
+
+.home-footer-tagline {
+  color: #8ca198;
+  font-size: 13px;
+}
+
+.home-footer-links {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+
+.home-footer-links a {
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.home-footer-team-link {
+  color: #167e63;
+  font-weight: 650;
+}
+
+.home-footer-team-link:hover {
+  color: #0b5e49;
+}
+
+.home-footer-copyright {
+  flex-basis: 100%;
+  margin: 0;
+  padding-top: 15px;
+  border-top: 1px solid rgba(38, 53, 46, 0.18);
+  color: #8ca198;
+  font-size: 12px;
+}
+
+@media (max-width: 600px) {
+  .home-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .home-footer-links {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+}

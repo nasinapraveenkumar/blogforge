@@ -4,6 +4,7 @@ import {
   listUsers,
   updateUserRole,
   updateUserStatus,
+   listPosts,
 } from "./admin.service.js";
 
 function handleError(res, error) {
@@ -72,6 +73,21 @@ export async function changeStatus(req, res) {
       message: "User status updated successfully.",
       data,
     });
+  } catch (error) {
+    return handleError(res, error);
+  }
+}
+
+export async function posts(req, res) {
+  try {
+    const data = await listPosts({
+      search: String(req.query.search || ""),
+      status: String(req.query.status || ""),
+      page: req.query.page,
+      limit: req.query.limit,
+    });
+
+    return res.json({ success: true, data });
   } catch (error) {
     return handleError(res, error);
   }

@@ -632,9 +632,25 @@ function Home() {
           <span className="footer-brand-icon">B</span>
           BlogForge
         </Link>
-        <span>Write. Share. Grow.</span>
-        <a href="#latest-stories">Back to stories ↑</a>
+
+        <span className="home-footer-tagline">
+          Write. Share. Grow.
+        </span>
+
+        <div className="home-footer-links">
+          <a href="#latest-stories">Back to stories ↑</a>
+
+          <Link to="/team" className="home-footer-team-link">
+            Developed by the BlogForge Team{" "}
+            <span aria-hidden="true">↗</span>
+          </Link>
+        </div>
+
+        <p className="home-footer-copyright">
+          © {new Date().getFullYear()} BlogForge. All rights reserved.
+        </p>
       </footer>
+
     </main>
   );
 }

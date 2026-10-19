@@ -68,3 +68,17 @@ export const changeCurrentPassword = async (
 
   return { message: "Password changed successfully" };
 };
+
+export const saveProfilePhoto = async (userId, profilePhoto) => {
+  const user = await User.findByIdAndUpdate(
+    userId,
+    { $set: { profilePhoto } },
+    { new: true, runValidators: true }
+  ).select("-password");
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  return user;
+};

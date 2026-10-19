@@ -1,6 +1,7 @@
 
 import mongoose from "mongoose";
 import User from "../auth/auth.model.js";
+import Post from "../post/post.model.js";
 
 const VALID_ROLES = ["USER", "MODERATOR", "ADMIN"];
 
@@ -164,3 +165,62 @@ export async function updateUserStatus(adminId, targetId, isActive) {
     isActive: target.isActive,
   };
 }
+
+export async function listPosts({
+  search = "",
+  status = "",
+  page = 1,
+  limit = 20,
+} = {}) {
+  const currentPage = Math.max(1, Number(page) || 1);
+  const pageSize = Math.min(100, Math.max(1, Number(limit) || 20));
+
+  const filter = {};
+
+  const validStatuses = [
+    "DRAFT",
+    "SUBMITTED",
+    "UNDER_REVIEW",
+    "APPROVED",
+    "PUBLISHED",
+    "REJECTED",
+  ];
+
+  if (status) {
+    const normalizedStatus = status.toUpperCase();
+
+    if (!validStatuses.includes(normalizedStatus)) {
+      throwError("Invalid post status.", 400);
+    }
+
+    filter.status = normalizedStatus;
+  }
+
+  if (search.trim()) {
+    const escaped = search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    filter.title = { $regex: escaped, $options: "i" };
+  }
+
+  const [posts, total] = await Promise.all([
+    Post.find(filter)
+      .select("title slug author status createdAt publishedAt")
+      .populate("author", "name email")
+      .sort({ createdAt: -1 })
+      .skip((currentPage - 1) * pageSize)
+      .limit(pageSize)
+      .lean(),
+
+    Post.countDocuments(filter),
+  ]);
+
+  return {
+    posts,
+    pagination: {
+      page: currentPage,
+      limit: pageSize,
+      total,
+      totalPages: Math.ceil(total / pageSize),
+    },
+  };
+}
+

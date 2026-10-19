@@ -1734,4 +1734,100 @@
   }
 }
 
+/* =========================================
+   BLOGFORGE NAVIGATION INTERACTION FIX
+   Create Post is highlighted only on /write
+   ========================================= */
 
+.dashboard-nav-link {
+  position: relative;
+  transition: background 0.22s ease, color 0.22s ease, border-color 0.22s ease, transform 0.22s ease, box-shadow 0.22s ease;
+}
+
+.dashboard-nav-link:hover {
+  transform: translateX(3px);
+  border-color: rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.07);
+  color: #ffffff;
+}
+
+.dashboard-nav-link:active { transform: scale(0.985); }
+
+.dashboard-nav-link::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 3px;
+  height: 0;
+  border-radius: 0 5px 5px 0;
+  background: #5ee6c1;
+  content: "";
+  transform: translateY(-50%);
+  transition: height 0.22s ease;
+}
+
+.dashboard-nav-link.selected:not([href="/write"]) {
+  border-color: rgba(138, 240, 212, 0.17);
+  background: linear-gradient(110deg, rgba(94, 230, 193, 0.19), rgba(58, 201, 170, 0.08));
+  color: #8af0d4;
+  box-shadow: inset 0 0 0 1px rgba(94, 230, 193, 0.025);
+  font-weight: 750;
+}
+
+.dashboard-nav-link.selected:not([href="/write"])::before { height: 24px; }
+
+.dashboard-nav-link .nav-symbol { flex-shrink: 0; transition: color 0.2s ease, transform 0.22s ease; }
+.dashboard-nav-link:hover .nav-symbol { transform: scale(1.1); color: #8af0d4; }
+.dashboard-nav-link.selected:not([href="/write"]) .nav-symbol { color: #5ee6c1; }
+
+/* Create Post stays subtle until its route is active. */
+.dashboard-nav-link[href="/write"] {
+  min-height: 52px;
+  margin: 4px 0 7px;
+  border-color: rgba(94, 230, 193, 0.13);
+  background: rgba(94, 230, 193, 0.08);
+  color: #d0e0e3;
+  box-shadow: none;
+  font-weight: 700;
+}
+
+.dashboard-nav-link[href="/write"]::before { display: none; }
+.dashboard-nav-link[href="/write"] .nav-symbol { color: #5ee6c1; }
+
+.dashboard-nav-link[href="/write"]:not(.selected):hover {
+  transform: translateY(-2px);
+  border-color: rgba(94, 230, 193, 0.3);
+  background: rgba(94, 230, 193, 0.16);
+  color: #ffffff;
+  box-shadow: 0 6px 18px rgba(39, 198, 164, 0.08);
+}
+
+.dashboard-nav-link[href="/write"]:not(.selected):hover .nav-symbol {
+  transform: translate(2px, -2px);
+  color: #8af0d4;
+}
+
+/* Solid mint appearance only on /write. */
+.dashboard-nav-link[href="/write"].selected {
+  border-color: rgba(138, 240, 212, 0.25);
+  background: linear-gradient(110deg, #64e7c5, #3ac9aa);
+  color: #10372f;
+  box-shadow: 0 6px 20px rgba(48, 209, 169, 0.15);
+  font-weight: 800;
+}
+
+.dashboard-nav-link[href="/write"].selected .nav-symbol { color: #10372f; }
+.dashboard-nav-link[href="/write"].selected:hover {
+  transform: translateY(-2px);
+  background: linear-gradient(110deg, #7aefd2, #4bd8b8);
+  box-shadow: 0 10px 25px rgba(48, 209, 169, 0.2);
+}
+.dashboard-nav-link[href="/write"]:active { transform: scale(0.985); }
+
+.dashboard-nav-link:focus-visible { outline: 3px solid #5ee6c1; outline-offset: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-nav-link,
+  .dashboard-nav-link::before,
+  .dashboard-nav-link .nav-symbol { transition: none !important; }
+}
