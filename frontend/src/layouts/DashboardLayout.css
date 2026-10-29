@@ -867,3 +867,74 @@
     font-size: 12px;
   }
 }
+
+/* Fix dashboard sidebar and navigation responsiveness */
+
+.dashboard-sidebar {
+  width: 280px;
+  min-width: 280px;
+  flex-shrink: 0;
+}
+
+.dashboard-sidebar a,
+.dashboard-sidebar button,
+.dashboard-sidebar .sidebar-link {
+  min-width: 0;
+}
+
+.dashboard-sidebar a,
+.dashboard-sidebar .sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.dashboard-sidebar a span,
+.dashboard-sidebar .sidebar-link span {
+  white-space: nowrap;
+}
+
+/* Keep the main content from squeezing the sidebar */
+.dashboard-main,
+.dashboard-content,
+.dashboard-body {
+  min-width: 0;
+  flex: 1;
+}
+
+/* Normal desktop and laptop screens */
+@media (min-width: 901px) {
+  .dashboard-sidebar {
+    width: 280px;
+    min-width: 280px;
+  }
+}
+
+/* Tablet */
+@media (max-width: 900px) {
+  .dashboard-sidebar {
+    width: 220px;
+    min-width: 220px;
+  }
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+  .dashboard-sidebar {
+    width: 76px;
+    min-width: 76px;
+  }
+
+  .dashboard-sidebar a,
+  .dashboard-sidebar .sidebar-link {
+    justify-content: center;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .dashboard-sidebar a span,
+  .dashboard-sidebar .sidebar-link span {
+    display: none;
+  }
+}
+

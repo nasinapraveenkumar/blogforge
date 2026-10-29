@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import {
   BrowserRouter,
@@ -14,6 +15,7 @@ import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ProtectedRoute from "./components/ProtectedRoute";
+import RoleRoute from "./components/RoleRoute";
 import MyPosts from "./pages/MyPosts";
 import CreatePost from "./pages/CreatePost";
 import Moderation from "./pages/Moderation";
@@ -105,6 +107,7 @@ function AppLayout() {
       {showMainNavbar && <Navbar />}
 
       <Routes>
+        {/* Public pages */}
         <Route path="/" element={<Home />} />
 
         <Route path="/login" element={<Login />} />
@@ -119,6 +122,7 @@ function AppLayout() {
 
         <Route path="/team" element={<Team />} />
 
+        {/* Authenticated user pages */}
         <Route element={<ProtectedRoute />}>
           <Route element={<DashboardLayout />}>
             <Route
@@ -171,7 +175,14 @@ function AppLayout() {
               }
             />
           </Route>
+        </Route>
 
+        {/* Moderator and Admin pages */}
+        <Route
+          element={
+            <RoleRoute allowedRoles={["ADMIN", "MODERATOR"]} />
+          }
+        >
           <Route
             path="/moderation"
             element={<Moderation />}
@@ -181,13 +192,17 @@ function AppLayout() {
             path="/reports"
             element={<Reports />}
           />
+        </Route>
 
+        {/* Admin-only page */}
+        <Route element={<RoleRoute allowedRoles={["ADMIN"]} />}>
           <Route
             path="/admin"
             element={<AdminDashboard />}
           />
         </Route>
 
+        {/* Fallback */}
         <Route path="*" element={<Home />} />
       </Routes>
     </>

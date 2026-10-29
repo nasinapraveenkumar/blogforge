@@ -40,7 +40,7 @@ export default function ProtectedRoute() {
   if (checking) {
     return (
       <main className="auth-checking">
-        <p>Checking your session...</p>
+        <p>Checking your session wait for a sec...</p>
       </main>
     );
   }

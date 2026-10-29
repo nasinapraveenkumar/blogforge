@@ -925,3 +925,151 @@
   }
 }
 
+.article-save-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border: 1px solid #b9e7dc;
+  border-radius: 14px;
+  background: #ffffff;
+  color: #173b3b;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.article-save-button:hover {
+  background: #eaf8f4;
+  border-color: #40c9ad;
+}
+
+.article-save-button:focus-visible {
+  outline: 3px solid #40c9ad;
+  outline-offset: 3px;
+}
+
+
+/* BlogForge article engagement buttons */
+
+.article-engagement-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.article-like-button,
+.article-bookmark-button {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 54px;
+  padding: 12px 20px;
+  border: 1px solid #b7e6dc;
+  border-radius: 17px;
+  background: #ffffff;
+  color: #172f3c;
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: 650;
+  line-height: 1.3;
+  cursor: pointer;
+  text-decoration: none;
+  appearance: none;
+  -webkit-appearance: none;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.article-like-button:hover,
+.article-bookmark-button:hover {
+  background: #eaf8f4;
+  border-color: #41c9ad;
+}
+
+.article-like-button:active,
+.article-bookmark-button:active {
+  transform: translateY(1px);
+}
+
+.article-like-button:focus-visible,
+.article-bookmark-button:focus-visible {
+  outline: 3px solid #41c9ad;
+  outline-offset: 3px;
+}
+
+.article-like-button:disabled,
+.article-bookmark-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.article-like-button > span:first-child,
+.article-bookmark-button > span:first-child {
+  color: #079b7c;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.article-like-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0 9px;
+  border-radius: 12px;
+  background: #e5f5f1;
+  color: #173b3b;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.article-like-button.is-liked {
+  background: #e8f8f3;
+  border-color: #41c9ad;
+}
+
+.article-like-button.is-liked > span:first-child {
+  color: #079b7c;
+}
+
+.article-bookmark-button.is-bookmarked {
+  background: #e8f8f3;
+  border-color: #41c9ad;
+  color: #087e68;
+}
+
+.article-bookmark-button.is-bookmarked > span:first-child {
+  color: #079b7c;
+}
+
+/* Keep the action panel tidy on smaller screens */
+@media (max-width: 640px) {
+  .article-engagement {
+    align-items: flex-start;
+    gap: 18px;
+  }
+
+  .article-engagement-actions {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .article-like-button,
+  .article-bookmark-button {
+    min-height: 48px;
+    padding: 10px 14px;
+    font-size: 15px;
+  }
+}
