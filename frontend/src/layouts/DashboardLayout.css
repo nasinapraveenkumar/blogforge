@@ -717,3 +717,119 @@
     justify-content: space-between;
   }
 }
+
+
+/* =========================================
+   BLOGFORGE MOBILE SIDEBAR GLITCH FIXES
+========================================= */
+
+@media (max-width: 768px) {
+
+  /* Restore complete BlogForge branding */
+  .mobile-sidebar-header {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 12px;
+    margin-bottom: 30px;
+  }
+
+  .dashboard-brand {
+    display: flex !important;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .dashboard-brand-text {
+    display: flex !important;
+    flex-direction: column;
+    visibility: visible !important;
+    opacity: 1 !important;
+    color: #ffffff !important;
+    font-size: 20px;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  .dashboard-brand-text small {
+    display: block !important;
+    color: #a8c5c1 !important;
+    font-size: 10px;
+    font-weight: 500;
+  }
+
+  .dashboard-logo {
+    flex-shrink: 0;
+  }
+
+  /* Compact navigation spacing */
+  .dashboard-nav {
+    gap: 6px !important;
+  }
+
+  .dashboard-nav-link {
+    min-height: 48px !important;
+    padding: 11px 15px !important;
+    border: 1px solid transparent;
+    border-radius: 13px;
+    background: transparent;
+    transform: none !important;
+  }
+
+  /* Only the actual active route stays highlighted */
+  .dashboard-nav-link:not(.selected) {
+    background: transparent !important;
+    border-color: transparent !important;
+    color: #b3c9c8 !important;
+  }
+
+  .dashboard-nav-link.selected {
+    background: rgba(101, 223, 191, 0.14) !important;
+    border: 1px solid rgba(101, 223, 191, 0.2) !important;
+    border-left: 4px solid #65dfbf !important;
+    color: #65dfbf !important;
+  }
+
+  /* Remove sticky hover effects on touch devices */
+  .dashboard-nav-link:hover:not(.selected) {
+    background: transparent !important;
+    color: #b3c9c8 !important;
+    transform: none !important;
+  }
+
+  /* Creator card spacing */
+  .sidebar-promo {
+    margin-top: 24px !important;
+    margin-bottom: 12px;
+    padding: 18px !important;
+  }
+
+  .sidebar-footer {
+    margin-top: 12px !important;
+    padding-bottom: 16px;
+  }
+
+  /* Allow the complete sidebar to scroll */
+  .dashboard-sidebar {
+    padding-bottom: 28px !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Close button */
+  .mobile-sidebar-close {
+    flex-shrink: 0;
+  }
+}
+
+/* Hover effects only on devices with a real pointer */
+@media (hover: hover) and (pointer: fine) {
+  .dashboard-nav-link:hover:not(.selected) {
+    color: white;
+    background: rgba(101, 223, 191, 0.09);
+    transform: translateX(3px);
+  }
+}
