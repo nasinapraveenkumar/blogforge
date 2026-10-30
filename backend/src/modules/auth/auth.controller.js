@@ -1,6 +1,21 @@
+
 import { registerUser, loginUser } from "./auth.service.js";
 import { registerSchema, loginSchema } from "./auth.validation.js";
 
+// Shared cookie configuration
+const getCookieOptions = () => {
+  const isProduction = process.env.NODE_ENV === "production";
+
+  return {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    path: "/",
+  };
+};
+
+// Register user
 export const register = async (req, res) => {
   try {
     const validatedData = registerSchema.parse(req.body);
@@ -20,18 +35,14 @@ export const register = async (req, res) => {
   }
 };
 
+// Login user
 export const login = async (req, res) => {
   try {
     const validatedData = loginSchema.parse(req.body);
 
     const user = await loginUser(validatedData);
 
-    res.cookie("token", user.token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    res.cookie("token", user.token, getCookieOptions());
 
     delete user.token;
 
@@ -47,12 +58,12 @@ export const login = async (req, res) => {
     });
   }
 };
+
+// Logout user
 export const logout = (req, res) => {
-  res.clearCookie("token", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-  });
+  const { maxAge, ...clearOptions } = getCookieOptions();
+
+  res.clearCookie("token", clearOptions);
 
   res.status(200).json({
     success: true,
